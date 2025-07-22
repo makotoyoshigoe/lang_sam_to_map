@@ -1,0 +1,2 @@
+# Empty compiler generated dependencies file for lang_sam_to_map.
+# This may be replaced when dependencies are built.
