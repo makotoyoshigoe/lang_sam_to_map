@@ -6,18 +6,25 @@
 #include<cv_bridge/cv_bridge.h>
 #include <cstdlib>
 #include <ctime>
+#include <tf2/convert.h>
+#include <tf2/utils.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <tf2_ros/create_timer_ros.h>
+
+#include <pcl_ros/transforms.hpp>
 
 namespace lang_sam_to_map{
 LangSamToMap::LangSamToMap(void)
  : Node("lang_sam_to_map"), 
    sync_(approximate_policy_(10), sub_color_, sub_depth_, sub_camera_info_), 
-   processing_(false), last_map_publish_t_(now())
+   processing_(false), init_tf_(false), last_map_publish_t_(now())
 {
     declare_param();
     init_param();
     init_vg_filter();
     init_client();
     init_pubsub();
+	init_map();
     std::srand(static_cast<unsigned int>(std::time(nullptr)));
 }
 
@@ -36,6 +43,8 @@ void LangSamToMap::declare_param(void)
     this->declare_parameter("valid_threshold.min", 0.3);
     this->declare_parameter("valid_threshold.max", 10.0);
     this->declare_parameter("map.resolution", 0.1);
+    this->declare_parameter("odom_frame_id", "odom");
+    this->declare_parameter("base_frame_id", "base_footprint");
 }
 
 void LangSamToMap::init_param(void)
@@ -46,6 +55,8 @@ void LangSamToMap::init_param(void)
     publish_pointcloud_ = this->get_parameter("pointcloud.publish").as_bool();
     min_valid_th_ = this->get_parameter("valid_threshold.min").as_double();
     max_valid_th_ = this->get_parameter("valid_threshold.max").as_double();
+    odom_frame_id_ = this->get_parameter("odom_frame_id").as_string();
+    base_frame_id_ = this->get_parameter("base_frame_id").as_string();
     map_resolution_ = this->get_parameter("map.resolution").as_double();
 }
 
@@ -82,9 +93,30 @@ void LangSamToMap::init_client(void)
         }
         RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, waiting again...");
     }
-    // rclcpp::Rate loop_rate(0.2);
-    // loop_rate.sleep();
     RCLCPP_INFO(get_logger(), "Server was Launched");
+}
+
+void LangSamToMap::init_tf(void)
+{
+    tf_buffer_.reset();
+    tf_listener_.reset();
+    tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
+    auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(
+        get_node_base_interface(), get_node_timers_interface(),
+        create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive, false));
+    tf_buffer_->setCreateTimerInterface(timer_interface);
+    tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+    init_tf_ = true;
+}
+
+void LangSamToMap::init_map(void)
+{
+	lang_sam_map_.header.frame_id = odom_frame_id_;
+	lang_sam_map_.info.resolution = map_resolution_;
+	map_width_ = max_valid_th_ / map_resolution_;
+	map_height_ = max_valid_th_ / map_resolution_;
+	lang_sam_map_.info.width = map_width_;
+	lang_sam_map_.info.height = map_height_;
 }
 
 void LangSamToMap::cb_message(
@@ -92,6 +124,7 @@ void LangSamToMap::cb_message(
         sensor_msgs::msg::Image::ConstSharedPtr color,
         sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info)
 {
+    if(!init_tf_) init_tf();
     if(publish_pointcloud_){
         publish_pointcloud(color, depth, camera_info);
     }
@@ -126,9 +159,18 @@ void LangSamToMap::publish_pointcloud(
     voxel_grid_filter_->setInputCloud(pointcloud);
     voxel_grid_filter_->filter(*sampled_cloud);
 
+    // Get TF from Base to Camera
+    tf2::Transform tf;
+    bool get_tf = get_pose_from_camera_to_base(color_msg->header.frame_id, tf);
+    if (!get_tf) return;
+
+    // Transform Pointcloud
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr output_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl_ros::transformPointCloud(*output_cloud, *output_cloud, tf);
+
     // Publish Pointcloud
     sensor_msgs::msg::PointCloud2 output_msg;
-    pcl::toROSMsg(*sampled_cloud, output_msg);
+    pcl::toROSMsg(*output_cloud, output_msg);
     output_msg.header.frame_id = color_msg->header.frame_id;
     output_msg.header.stamp = now();
     pub_color_pc2_->publish(output_msg);
@@ -168,9 +210,8 @@ void LangSamToMap::create_pointcloud(
     int rows = cv_color.rows, cols = cv_color.cols;
     for (int v = 0; v < rows; ++v){
         for (int u = 0; u < cols; ++u) {
-            float z = static_cast<float>(cv_depth.at<uint16_t>(v, u)) * 0.001f;
-            if(std::isnan(z) || z < min_valid_th_ || z > max_valid_th_) continue;
-            cv::Point3d xyz = uvz_to_xyz(cam_model, u, v, z);
+            cv::Point3d xyz = uv_to_xyz(cam_model, cv_depth, u, v);
+			if(std::isnan(xyz.x) || std::isnan(xyz.y) || std::isnan(xyz.z)) continue;
             cv::Vec3b color = cv_color.at<cv::Vec3b>(v, u);
             pcl::PointXYZRGB p(
                 xyz.x, xyz.y, xyz.z, color[2], color[1], color[0]);
@@ -184,12 +225,36 @@ void LangSamToMap::create_pointcloud(
 	pointcloud->is_dense = false;
 }
 
-cv::Point3d LangSamToMap::uvz_to_xyz(
+cv::Point3d LangSamToMap::uv_to_xyz(
     image_geometry::PinholeCameraModel& cam_model,
-    int u, int v, float z)
+	cv::Mat& cv_depth, 
+    int u, int v)
 {
+    float z = static_cast<float>(cv_depth.at<uint16_t>(v, u)) * 0.001f;
+    if(std::isnan(z) || z < min_valid_th_ || z > max_valid_th_){
+		return cv::Point3d(NAN, NAN, NAN);
+	}
     cv::Point3d xyz = cam_model.projectPixelTo3dRay(cv::Point2d(u, v)) * z;
     return xyz;
+}
+
+bool LangSamToMap::get_pose_from_camera_to_base(
+    std::string camera_frame_id,
+    tf2::Transform& tf)
+{
+    rclcpp::Time time = rclcpp::Time(0);
+    geometry_msgs::msg::TransformStamped tf_tmp;
+
+    try {
+        tf_tmp = tf_buffer_->lookupTransform(
+            base_frame_id_, camera_frame_id, time, rclcpp::Duration::from_seconds(4.0));
+        tf2::fromMsg(tf_tmp.transform, tf);
+    } catch (tf2::TransformException& e) {
+        RCLCPP_WARN(
+            this->get_logger(), "Failed to compute camera pose(%s)", e.what());
+        return false;
+    }
+    return true;
 }
 
 bool LangSamToMap::send_request(void)
@@ -225,7 +290,10 @@ void LangSamToMap::handle_process(
             std::vector<std::vector<std::vector<cv::Point>>> contours = find_each_mask_contours(cv_rgb_masks);
 
             // Create Map and Publish it
+			// 0F: num of mask, 1F: num of contour, 2F: num of contour 2D points, 2F factors: vector of contour 2D point
             RCLCPP_INFO(get_logger(), "0F: %ld, 1F: %ld, 2F: %ld", contours.size(), contours[0].size(), contours[0][0].size());
+			// Transform contours 2D points to occupied grid map
+			// create_grid_map_from_contours(contours);
 
             // Create Visualize Masks and Publish it
             cv::Mat vis_mask = visualize_mask_contours(cv_rgb_masks, contours);
@@ -241,8 +309,8 @@ std::vector<cv::Mat> LangSamToMap::msg_mask_to_binary(
 {
     size_t masks_s = masks.size();
     std::vector<cv::Mat> cv_vec(masks_s);
+    std::shared_ptr<sensor_msgs::msg::Image> mask_ptr;
     for(size_t i=0; i<masks_s; ++i){
-        std::shared_ptr<sensor_msgs::msg::Image> mask_ptr;
         mask_ptr.reset(new sensor_msgs::msg::Image(masks[i]));
         img_msg_to_cv(mask_ptr, cv_vec[i]);
     }
@@ -266,20 +334,6 @@ std::vector<cv::Mat> LangSamToMap::bin_mask_to_rgb(
     return rgb_masks;
 }
 
-cv::Mat LangSamToMap::visualize_mask_contours(
-        const std::vector<cv::Mat>& cv_rgb_masks, 
-        const std::vector<std::vector<std::vector<cv::Point>>>& contours)
-{
-    cv::Mat cv_color;
-    img_msg_to_cv(color_, cv_color);
-    size_t mask_s = cv_rgb_masks.size();
-    for(size_t i=0; i<mask_s; ++i){
-        cv::addWeighted(cv_color, 1.0, cv_rgb_masks[i], 0.5, 0.0, cv_color);
-        cv::drawContours(cv_color, contours[i], -1, cv::Scalar(255, 0, 0), 1);
-    }
-    return cv_color;
-}
-
 std::vector<std::vector<std::vector<cv::Point>>> LangSamToMap::find_each_mask_contours(
     const std::vector<cv::Mat>& cv_rgb_masks)
 {
@@ -293,6 +347,79 @@ std::vector<std::vector<std::vector<cv::Point>>> LangSamToMap::find_each_mask_co
         cv::findContours(binary, contours[i], hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
     }
     return contours;
+}
+
+void LangSamToMap::create_grid_map_from_contours(
+	std::vector<std::vector<std::vector<cv::Point>>>& contours)
+{
+    // Create Camera Model
+    image_geometry::PinholeCameraModel cam_model;
+    cam_model.fromCameraInfo(camera_info_);
+
+    // ROS->CV(depth)
+    cv::Mat cv_depth;
+    bool cvt_depth = img_msg_to_cv(depth_, cv_depth);
+	if(cvt_depth) return;
+
+    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> vec_pc;
+
+	// contours points and depth -> pcl
+	for(size_t i=0; i<contours.size(); ++i){
+		for(size_t j=0; j<contours[i].size(); ++j){
+            pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud(new pcl::PointCloud<pcl::PointXYZ>);
+            pointcloud->points.reserve(contours[i][j].size());
+			for(auto &p: contours[i][j]){
+				cv::Point3d xyz = uv_to_xyz(cam_model, cv_depth, p.x, p.y);
+			    if(std::isnan(xyz.x) || std::isnan(xyz.y) || std::isnan(xyz.z)) continue;
+                pcl::PointXYZ p_xyz(xyz.x, xyz.y, xyz.z);
+                pointcloud->points.emplace_back(p_xyz);
+			}
+            vec_pc.emplace_back(pointcloud);
+		}
+	}
+	
+	// Get TF camera frame->odom
+    tf2::Transform tf;
+    bool get_tf = get_pose_from_camera_to_base(color_->header.frame_id, tf);
+    if(get_tf) return;
+
+    // Transform coordinate camera frame->base
+    for(auto &pc: vec_pc){
+        pcl_ros::transformPointCloud(*pc, *pc, tf);
+    }
+
+    // Point xy -> Grid xy
+	// z->x, x->y
+	pcl::PointCloud<pcl::PointXYZ>::iterator pt;
+	for(auto &pc: vec_pc){
+ 		for (pt=pc->points.begin(); pt < pc->points.end(); pt++){
+			int index = xy_to_index((*pt).z, (*pt).x);		
+			if(index == -1) continue;
+			lang_sam_map_.data[index] = 100;
+		}
+	}
+}
+
+int LangSamToMap::xy_to_index(double x, double y)
+{
+    int mx = static_cast<int>((x-lang_sam_map_.info.origin.position.x)/map_resolution_);
+    int my = static_cast<int>((y-lang_sam_map_.info.origin.position.y)/map_resolution_);
+    if(mx < 0 || mx >= map_width_ || my < 0 || my >= map_height_) return -1;
+    return my * map_width_ + mx;
+}
+
+cv::Mat LangSamToMap::visualize_mask_contours(
+        const std::vector<cv::Mat>& cv_rgb_masks, 
+        const std::vector<std::vector<std::vector<cv::Point>>>& contours)
+{
+    cv::Mat cv_color;
+    img_msg_to_cv(color_, cv_color);
+    size_t mask_s = cv_rgb_masks.size();
+    for(size_t i=0; i<mask_s; ++i){
+        cv::addWeighted(cv_color, 1.0, cv_rgb_masks[i], 0.5, 0.0, cv_color);
+        cv::drawContours(cv_color, contours[i], -1, cv::Scalar(255, 0, 0), 1);
+    }
+    return cv_color;
 }
 
 void LangSamToMap::publish_vis_mask(cv::Mat& input_img)

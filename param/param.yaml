@@ -9,7 +9,7 @@ lang_sam_to_map:
       time: 3.0
       distance: 5
     pointcloud: 
-      publish: false
+      publish: true
       voxel_grid:
         leaf_size: 0.025
     valid_threshold:
@@ -17,3 +17,4 @@ lang_sam_to_map:
       max: 10.0
     map:
       resolution: 0.1
+    base_frame_id: "base_footprint"
