@@ -51,7 +51,7 @@ def generate_launch_description():
                 }.items()
             ),
             TimerAction(
-                period=5.0,
+                period=1.0,
                 actions=[
                     Node(
                         package='lang_sam_to_map',

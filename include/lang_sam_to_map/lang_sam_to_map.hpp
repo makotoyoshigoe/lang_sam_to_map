@@ -10,6 +10,7 @@
 #include<sensor_msgs/msg/camera_info.hpp>
 #include<sensor_msgs/msg/point_cloud2.hpp>
 #include<nav_msgs/msg/occupancy_grid.hpp>
+#include<nav_msgs/msg/odometry.hpp>
 #include<ros2_lang_sam_msgs/srv/text_segmentation.hpp>
 #include<message_filters/subscriber.h>
 #include<message_filters/sync_policies/approximate_time.h>
@@ -34,6 +35,8 @@ public:
     void init_client(void);
     void init_tf(void);
 	void init_map(void);
+    void cb_odom(
+        nav_msgs::msg::Odometry::ConstSharedPtr msg);
     void cb_message(
         sensor_msgs::msg::Image::ConstSharedPtr depth,
         sensor_msgs::msg::Image::ConstSharedPtr color,
@@ -50,11 +53,14 @@ public:
         cv::Mat& cv_depth, 
         sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info, 
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pointcloud);
-    cv::Point3d uv_to_xyz(
+    bool uv_to_xyz(
         image_geometry::PinholeCameraModel& cam_model,
 		cv::Mat& cv_depth, 
-        int u, int v);
+        int u, int v, cv::Point3d& xyz);
     bool get_pose_from_camera_to_base(
+        std::string camera_frame_id,
+        tf2::Transform& tf);
+    bool get_pose_from_camera_to_odom(
         std::string camera_frame_id,
         tf2::Transform& tf);
     void init_vg_filter(void);
@@ -67,7 +73,7 @@ public:
         const std::vector<cv::Mat>& bin_masks);
     std::vector<std::vector<std::vector<cv::Point>>> find_each_mask_contours(
         const std::vector<cv::Mat>& cv_rgb_masks);
-	void create_grid_map_from_contours(
+	bool create_grid_map_from_contours(
 			std::vector<std::vector<std::vector<cv::Point>>>& contours);
 	int xy_to_index(double x, double y);
     cv::Mat visualize_mask_contours(
@@ -83,8 +89,10 @@ public:
     double get_diff_time(void);
 
 private:
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_odom_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_color_pc2_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_vis_mask_;
+    rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr pub_lang_sam_map_;
     message_filters::Subscriber<sensor_msgs::msg::Image> sub_depth_;
     message_filters::Subscriber<sensor_msgs::msg::Image> sub_color_;
     message_filters::Subscriber<sensor_msgs::msg::CameraInfo> sub_camera_info_;

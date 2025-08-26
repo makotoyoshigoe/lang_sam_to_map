@@ -46,7 +46,7 @@ def generate_launch_description():
                         name='lang_sam_to_map',
                         output='screen',
                         parameters=[param_dir], 
-                        # remappings=[('/camera/camera/aligned_depth_to_color/image_raw')]
+                        remappings=[('camera/camera/color/image_raw', '/camera/image_raw')]
                     )
                 ]
             )
