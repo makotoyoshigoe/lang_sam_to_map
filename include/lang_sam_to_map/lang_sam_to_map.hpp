@@ -9,6 +9,7 @@
 #include<sensor_msgs/msg/image.hpp>
 #include<sensor_msgs/msg/camera_info.hpp>
 #include<sensor_msgs/msg/point_cloud2.hpp>
+#include<sensor_msgs/msg/region_of_interest.hpp>
 #include<nav_msgs/msg/occupancy_grid.hpp>
 #include<nav_msgs/msg/odometry.hpp>
 #include<ros2_lang_sam_msgs/srv/text_segmentation.hpp>
@@ -63,6 +64,7 @@ public:
     bool get_pose_from_camera_to_odom(
         std::string camera_frame_id,
         tf2::Transform& tf);
+    bool get_odom(double &x, double &y);
     void init_vg_filter(void);
     bool send_request(void);
     void handle_process(
@@ -71,14 +73,19 @@ public:
         const std::vector<sensor_msgs::msg::Image>& masks);
     std::vector<cv::Mat> bin_mask_to_rgb(
         const std::vector<cv::Mat>& bin_masks);
+    cv::Mat add_weight_bin(
+        const std::vector<cv::Mat>& bin_masks);
     std::vector<std::vector<std::vector<cv::Point>>> find_each_mask_contours(
         const std::vector<cv::Mat>& cv_rgb_masks);
 	bool create_grid_map_from_contours(
-			std::vector<std::vector<std::vector<cv::Point>>>& contours);
+			std::vector<std::vector<std::vector<cv::Point>>>& contours, 
+            cv::Mat bin_mask);
 	int xy_to_index(double x, double y);
-    cv::Mat visualize_mask_contours(
+    void bresenham(int x_e, int y_e);
+    cv::Mat visualize_mask_contours_bbox(
         const std::vector<cv::Mat>& cv_rgb_masks, 
-        const std::vector<std::vector<std::vector<cv::Point>>>& contours);
+        const std::vector<std::vector<std::vector<cv::Point>>>& contours, 
+		const std::vector<sensor_msgs::msg::RegionOfInterest>& boxes);
     void publish_vis_mask(
         cv::Mat& input_img);
     bool cv_to_msg(

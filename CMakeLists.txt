@@ -22,12 +22,8 @@ find_package(nav_msgs REQUIRED)
 add_executable(lang_sam_to_map
     src/lang_sam_to_map_main.cpp
     src/lang_sam_to_map.cpp
+    src/rgb_image.cpp
 )
-
-#add_executable(plot_scan
-#    src/plot_scan_main.cpp
-#    src/plot_scan.cpp
-#)
 
 ament_target_dependencies(lang_sam_to_map
     ament_cmake
