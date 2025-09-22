@@ -1,15 +1,15 @@
 lang_sam_to_map:
   ros__parameters:
     lsa:
-      text_prompt: "side walk"
+      text_prompt: "various sidewalks and tiles"
       box_threshold: 0.3
       text_threshold: 0.25
     node_freq: 20
     interval:
-      time: 3.0
+      time: 2.0
       distance: 5
     pointcloud: 
-      publish: true
+      publish: false
       voxel_grid:
         leaf_size: 0.05
     valid_threshold:
