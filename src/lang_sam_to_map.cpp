@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "lang_sam_to_map/lang_sam_to_map.hpp"
-#include "lang_sam_to_map/rgb_image.hpp"
+#include "lang_sam_to_map/rgbd_pointcloud_converter.hpp"
 
 #include <cstdlib>
 #include <ctime>
@@ -21,7 +21,6 @@ LangSamToMap::LangSamToMap(void)
 {
     declare_param();
     init_param();
-    init_vg_filter();
     init_client();
     init_pubsub();
 	init_map();
@@ -58,13 +57,6 @@ void LangSamToMap::init_param(void)
     odom_frame_id_ = this->get_parameter("odom_frame_id").as_string();
     base_frame_id_ = this->get_parameter("base_frame_id").as_string();
     map_resolution_ = this->get_parameter("map.resolution").as_double();
-}
-
-void LangSamToMap::init_vg_filter(void)
-{
-    double leaf_size = this->get_parameter("pointcloud.voxel_grid.leaf_size").as_double();
-    voxel_grid_filter_.reset(new pcl::VoxelGrid<pcl::PointXYZRGB>());
-    voxel_grid_filter_->setLeafSize(leaf_size, leaf_size, leaf_size);
 }
 
 void LangSamToMap::init_pubsub(void)
@@ -163,34 +155,15 @@ void LangSamToMap::publish_pointcloud(
 {
     if(color_msg == nullptr || depth_msg == nullptr) return;
 
-    // ROS->CV
-    cv::Mat cv_color, cv_depth;
-    bool cvt_color = img_msg_to_cv(color_msg, cv_color);
-    bool cvt_depth = img_msg_to_cv(depth_msg, cv_depth);
-    if(!cvt_color || !cvt_depth) return;
-    cv::cvtColor(cv_color, cv_color, CV_BGR2RGB);
-
-    // color, depth -> pointcloud
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-    create_pointcloud(cv_color, cv_depth, camera_info, pointcloud);
-
-    // Down Sampling
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr sampled_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-    voxel_grid_filter_->setInputCloud(pointcloud);
-    voxel_grid_filter_->filter(*sampled_cloud);
-
-    // Get TF from Base to Camera
-    // tf2::Transform tf;
-    // bool get_tf = get_pose_from_camera_to_base(color_msg->header.frame_id, tf);
-    // if (!get_tf) return;
-
-    // Transform Pointcloud
-    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr output_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-    // pcl_ros::transformPointCloud(*sampled_cloud, *output_cloud, tf);
+    // RGB画像、深度画像->3次元色付き点群
+    auto rgbd_pc_cvt = std::make_unique<RGBDPointcloudConverter>(color_msg, depth_msg, camera_info);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc(new pcl::PointCloud<pcl::PointXYZRGB>), down_sampled_pc(new pcl::PointCloud<pcl::PointXYZRGB>);
+    rgbd_pc_cvt->create_point_cloud(pc, max_valid_th_, min_valid_th_);
+    rgbd_pc_cvt->down_sampling(pc, down_sampled_pc, vg_leaf_size_);
 
     // Publish Pointcloud
     sensor_msgs::msg::PointCloud2 output_msg;
-    pcl::toROSMsg(*sampled_cloud, output_msg);
+    pcl::toROSMsg(*down_sampled_pc, output_msg);
     output_msg.header.frame_id = color_msg->header.frame_id;
     output_msg.header.stamp = now();
     pub_color_pc2_->publish(output_msg);
@@ -210,40 +183,6 @@ bool LangSamToMap::img_msg_to_cv(
         RCLCPP_WARN(get_logger(), "OpenCV exception: %s", e.what());
         return false;
     }
-}
-
-void LangSamToMap::create_pointcloud(
-        cv::Mat& cv_color,
-        cv::Mat& cv_depth, 
-        sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info, 
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pointcloud)
-{
-    // Reserve PointCloud Vector
-    size_t data_s = cv_color.rows * cv_color.cols;
-    pointcloud->points.reserve(data_s);
-
-    // Create Camera Model
-    image_geometry::PinholeCameraModel cam_model;
-    cam_model.fromCameraInfo(camera_info);
-
-    // Create PointCloud
-    int rows = cv_color.rows, cols = cv_color.cols;
-    for (int v = 0; v < rows; ++v){
-        for (int u = 0; u < cols; ++u) {
-            cv::Point3d xyz;
-            bool cvt_res = uv_to_xyz(cam_model, cv_depth, u, v, xyz);
-			if(!cvt_res) continue;
-            cv::Vec3b color = cv_color.at<cv::Vec3b>(v, u);
-            pcl::PointXYZRGB p(
-                xyz.x, xyz.y, xyz.z, color[2], color[1], color[0]);
-            pointcloud->points.emplace_back(p);
-        }
-    }
-
-    // Set PointCloud Infomation
-    pointcloud->width = pointcloud->points.size();
-	pointcloud->height = 1;
-	pointcloud->is_dense = false;
 }
 
 bool LangSamToMap::uv_to_xyz(

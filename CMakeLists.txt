@@ -23,6 +23,8 @@ add_executable(lang_sam_to_map
     src/lang_sam_to_map_main.cpp
     src/lang_sam_to_map.cpp
     src/rgb_image.cpp
+    src/rgbd_image.cpp
+    src/rgbd_pointcloud_converter.cpp
 )
 
 ament_target_dependencies(lang_sam_to_map

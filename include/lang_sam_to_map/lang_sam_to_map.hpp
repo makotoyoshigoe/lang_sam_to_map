@@ -49,11 +49,6 @@ public:
     bool img_msg_to_cv(
         sensor_msgs::msg::Image::ConstSharedPtr img_msg,
         cv::Mat& rgb_image);
-    void create_pointcloud(
-        cv::Mat& cv_color,
-        cv::Mat& cv_depth, 
-        sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info, 
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pointcloud);
     bool uv_to_xyz(
         image_geometry::PinholeCameraModel& cam_model,
 		cv::Mat& cv_depth, 
@@ -65,7 +60,6 @@ public:
         std::string camera_frame_id,
         tf2::Transform& tf);
     bool get_odom(double &x, double &y);
-    void init_vg_filter(void);
     bool send_request(void);
     void handle_process(
         rclcpp::Client<ros2_lang_sam_msgs::srv::TextSegmentation>::SharedFuture future);
@@ -114,7 +108,7 @@ private:
 
     std::shared_ptr<ros2_lang_sam_msgs::srv::TextSegmentation::Request> request_msg_;
     std::shared_ptr<ros2_lang_sam_msgs::srv::TextSegmentation::Response> response_msg_;
-    float box_th_, text_th_, min_valid_th_, max_valid_th_, time_interval_, map_resolution_;
+    float box_th_, text_th_, min_valid_th_, max_valid_th_, time_interval_, map_resolution_, vg_leaf_size_;
     std::string text_prompt_;
     bool processing_, publish_pointcloud_, init_msg_receive_, init_request_, init_tf_;
     int node_freq_, distance_interval_, map_width_, map_height_;

@@ -45,6 +45,17 @@ bool RGBImage::cv_to_msg(
     }
 }
 
+cv::Vec3b RGBImage::get_pixel_color(int u, int v)
+{
+    return cv_color_.at<cv::Vec3b>(v, u);
+}
+
+void RGBImage::get_image_size(int & rows, int & cols)
+{
+    rows = cv_color_.rows;
+    cols = cv_color_.cols;
+}
+
 RGBImage::~RGBImage(){}
 
 }
