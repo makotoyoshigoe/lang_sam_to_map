@@ -3,6 +3,7 @@
 
 #include "lang_sam_to_map/lang_sam_to_map.hpp"
 #include "lang_sam_to_map/rgbd_pointcloud_converter.hpp"
+#include "lang_sam_to_map/lsa_map_generator.hpp"
 
 #include <cstdlib>
 #include <ctime>
@@ -282,28 +283,33 @@ void LangSamToMap::handle_process(
     }else{
         RCLCPP_INFO(get_logger(), "Recieve Responce, mask size: %ld", response_msg->masks.size());
         if(response_msg->masks.size() != 0){
+            auto lsa_map_generator = std::make_unique<LSAMapGenerator>(response_msg->masks, depth_, camera_info_, odom_frame_id_, map_resolution_, map_width_, map_height_);
+            lsa_map_generator->fill_bottom();
+            lang_sam_map_ = lsa_map_generator->get_map_msg(now());
+
             // ROS Message Vector to CV Vector
-            std::vector<cv::Mat> cv_bin_masks = msg_mask_to_binary(response_msg->masks);
+            // std::vector<cv::Mat> cv_bin_masks = msg_mask_to_binary(response_msg->masks);
 
             // Addweight binary
-            std::vector<cv::Mat> add_weighted_bin(1, add_weight_bin(cv_bin_masks));
+            // std::vector<cv::Mat> add_weighted_bin(1, add_weight_bin(cv_bin_masks));
 
             // Binary Mask to RGB Mask
-            std::vector<cv::Mat> cv_rgb_masks = bin_mask_to_rgb(add_weighted_bin);
+            // std::vector<cv::Mat> cv_rgb_masks = bin_mask_to_rgb(add_weighted_bin);
 
             // Find Contours
-            std::vector<std::vector<std::vector<cv::Point>>> contours = find_each_mask_contours(cv_rgb_masks);
+            // std::vector<std::vector<std::vector<cv::Point>>> contours = find_each_mask_contours(cv_rgb_masks);
 
             // Connect neigboor neighborhood contours point
 
 
 			// Transform contours 2D points to occupied grid map
-			bool create_map = create_grid_map_from_contours(contours, add_weighted_bin[0]);
-			if(create_map) pub_lang_sam_map_->publish(lang_sam_map_);
+			// bool create_map = create_grid_map_from_contours(contours, add_weighted_bin[0]);
+			// if(create_map) pub_lang_sam_map_->publish(lang_sam_map_);
+			pub_lang_sam_map_->publish(lang_sam_map_);
 
             // Create Visualize Masks, Contours, BBox and Publish it
-            cv::Mat vis_mask = visualize_mask_contours_bbox(cv_rgb_masks, contours, response_msg->boxes);
-            publish_vis_mask(vis_mask);
+            // cv::Mat vis_mask = visualize_mask_contours_bbox(cv_rgb_masks, contours, response_msg->boxes);
+            // publish_vis_mask(vis_mask);
         }
     }
     last_map_publish_t_ = this->get_clock()->now();
