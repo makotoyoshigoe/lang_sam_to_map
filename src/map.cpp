@@ -46,11 +46,10 @@ bool Map::xy_to_index(float x, float y, int & ix, int & iy)
     return true;
 }
 
-nav_msgs::msg::OccupancyGrid Map::get_map_msg(rclcpp::Time stamp)
+nav_msgs::msg::OccupancyGrid Map::get_map_msg(void)
 {
     nav_msgs::msg::OccupancyGrid msg;
     msg.header.frame_id = frame_id_;
-    // msg.header.stamp = stamp;
     msg.info.height = height_;
     msg.info.origin.position.x = ox_;
     msg.info.origin.position.y = oy_;

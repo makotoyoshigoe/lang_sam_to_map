@@ -46,13 +46,13 @@ public:
         sensor_msgs::msg::Image::ConstSharedPtr color_msg, 
         sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 
         sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info);
-    bool img_msg_to_cv(
-        sensor_msgs::msg::Image::ConstSharedPtr img_msg,
-        cv::Mat& rgb_image);
-    bool uv_to_xyz(
-        image_geometry::PinholeCameraModel& cam_model,
-		cv::Mat& cv_depth, 
-        int u, int v, cv::Point3d& xyz);
+    // bool img_msg_to_cv(
+    //     sensor_msgs::msg::Image::ConstSharedPtr img_msg,
+    //     cv::Mat& rgb_image);
+    // bool uv_to_xyz(
+    //     image_geometry::PinholeCameraModel& cam_model,
+	// 	cv::Mat& cv_depth, 
+    //     int u, int v, cv::Point3d& xyz);
     bool get_pose_from_camera_to_base(
         std::string camera_frame_id,
         tf2::Transform& tf);
@@ -63,23 +63,23 @@ public:
     bool send_request(void);
     void handle_process(
         rclcpp::Client<ros2_lang_sam_msgs::srv::TextSegmentation>::SharedFuture future);
-    std::vector<cv::Mat> msg_mask_to_binary(
-        const std::vector<sensor_msgs::msg::Image>& masks);
-    std::vector<cv::Mat> bin_mask_to_rgb(
-        const std::vector<cv::Mat>& bin_masks);
-    cv::Mat add_weight_bin(
-        const std::vector<cv::Mat>& bin_masks);
-    std::vector<std::vector<std::vector<cv::Point>>> find_each_mask_contours(
-        const std::vector<cv::Mat>& cv_rgb_masks);
-	bool create_grid_map_from_contours(
-			std::vector<std::vector<std::vector<cv::Point>>>& contours, 
-            cv::Mat bin_mask);
-	int xy_to_index(double x, double y);
-    void bresenham(int x_e, int y_e);
-    cv::Mat visualize_mask_contours_bbox(
-        const std::vector<cv::Mat>& cv_rgb_masks, 
-        const std::vector<std::vector<std::vector<cv::Point>>>& contours, 
-		const std::vector<sensor_msgs::msg::RegionOfInterest>& boxes);
+    // std::vector<cv::Mat> msg_mask_to_binary(
+    //     const std::vector<sensor_msgs::msg::Image>& masks);
+    // std::vector<cv::Mat> bin_mask_to_rgb(
+    //     const std::vector<cv::Mat>& bin_masks);
+    // cv::Mat add_weight_bin(
+    //     const std::vector<cv::Mat>& bin_masks);
+    // std::vector<std::vector<std::vector<cv::Point>>> find_each_mask_contours(
+    //     const std::vector<cv::Mat>& cv_rgb_masks);
+	// bool create_grid_map_from_contours(
+	// 		std::vector<std::vector<std::vector<cv::Point>>>& contours, 
+    //         cv::Mat bin_mask);
+	// int xy_to_index(double x, double y);
+    // void bresenham(int x_e, int y_e);
+    // cv::Mat visualize_mask_contours_bbox(
+    //     const std::vector<cv::Mat>& cv_rgb_masks, 
+    //     const std::vector<std::vector<std::vector<cv::Point>>>& contours, 
+	// 	const std::vector<sensor_msgs::msg::RegionOfInterest>& boxes);
     void publish_vis_mask(
         cv::Mat& input_img);
     bool cv_to_msg(

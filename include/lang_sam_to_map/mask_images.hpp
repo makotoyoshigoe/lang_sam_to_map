@@ -4,6 +4,7 @@
 #pragma once
 
 #include "lang_sam_to_map/image.hpp"
+#include <sensor_msgs/msg/region_of_interest.hpp>
 
 namespace lang_sam_to_map{
 
@@ -17,6 +18,9 @@ class MaskImages : public Image
     void bin_mask_to_rgb(void);
     void find_contours(std::vector<std::vector<cv::Point>> & contours);
     void get_bin_mask(cv::Mat & output);
+    cv::Mat vis_mask_contours_bbox(
+        sensor_msgs::msg::Image::ConstSharedPtr base, 
+        std::vector<sensor_msgs::msg::RegionOfInterest> & boxes);
 
     private:
     std::vector<cv::Mat> cv_bin_mask_vec_;

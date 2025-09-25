@@ -24,6 +24,9 @@ class LSAMapGenerator : public lang_sam_to_map::Map{
     void find_unoccupied_3d_point(
         pcl::PointCloud<pcl::PointXYZ>::Ptr & unoccupied_pc);
     void bresenham(int x_e, int y_e);
+    cv::Mat get_visalize_image(
+        sensor_msgs::msg::Image::ConstSharedPtr base, 
+        std::vector<sensor_msgs::msg::RegionOfInterest> & boxes);
 
     private:
     std::vector<sensor_msgs::msg::Image> masks_msg_vec_;

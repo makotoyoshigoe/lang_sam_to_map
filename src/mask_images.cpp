@@ -59,6 +59,24 @@ void MaskImages::get_bin_mask(cv::Mat & output)
     output = cv_aw_bin_mask_.clone();
 }
 
+cv::Mat MaskImages::vis_mask_contours_bbox(
+    sensor_msgs::msg::Image::ConstSharedPtr base, 
+    std::vector<sensor_msgs::msg::RegionOfInterest> & boxes)
+{
+    cv::Mat cv_vis;
+    img_msg_to_cv(base, cv_vis);
+    cv::addWeighted(cv_vis, 1.0, cv_rgb_mask_, 0.5, 0.0, cv_vis);
+    for(auto &c: contours_) cv::drawContours(cv_vis, c, -1, cv::Scalar(255, 0, 0), 1);
+	for(auto &box: boxes){
+		// バウンディングボックスを描画
+		cv::rectangle(cv_vis, 
+            cv::Point(box.x_offset, box.y_offset), 
+            cv::Point(box.x_offset+box.width, box.y_offset+box.height), 
+            cv::Scalar(0, 0, 255), 1);
+	}
+    return cv_vis;
+}
+
 MaskImages::~MaskImages(){}
 
 }

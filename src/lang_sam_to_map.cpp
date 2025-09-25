@@ -170,34 +170,34 @@ void LangSamToMap::publish_pointcloud(
     pub_color_pc2_->publish(output_msg);
 }
 
-bool LangSamToMap::img_msg_to_cv(
-    sensor_msgs::msg::Image::ConstSharedPtr img_msg,
-    cv::Mat& cv_image)
-{
-    try {
-        cv_image = cv_bridge::toCvShare(img_msg)->image.clone();
-        return true;
-    } catch (cv_bridge::Exception& e) {
-        RCLCPP_WARN(get_logger(), "cv_bridge exception: %s", e.what());
-        return false;
-    } catch (cv::Exception& e) {
-        RCLCPP_WARN(get_logger(), "OpenCV exception: %s", e.what());
-        return false;
-    }
-}
+// bool LangSamToMap::img_msg_to_cv(
+//     sensor_msgs::msg::Image::ConstSharedPtr img_msg,
+//     cv::Mat& cv_image)
+// {
+//     try {
+//         cv_image = cv_bridge::toCvShare(img_msg)->image.clone();
+//         return true;
+//     } catch (cv_bridge::Exception& e) {
+//         RCLCPP_WARN(get_logger(), "cv_bridge exception: %s", e.what());
+//         return false;
+//     } catch (cv::Exception& e) {
+//         RCLCPP_WARN(get_logger(), "OpenCV exception: %s", e.what());
+//         return false;
+//     }
+// }
 
-bool LangSamToMap::uv_to_xyz(
-    image_geometry::PinholeCameraModel& cam_model,
-	cv::Mat& cv_depth, 
-    int u, int v, cv::Point3d& xyz)
-{
-    float z = static_cast<float>(cv_depth.at<uint16_t>(v, u)) * 0.001f;
-    if(std::isnan(z) || z < min_valid_th_ || z > max_valid_th_){
-        return false;
-	}
-    xyz = cam_model.projectPixelTo3dRay(cv::Point2d(u, v)) * z;
-    return true;
-}
+// bool LangSamToMap::uv_to_xyz(
+//     image_geometry::PinholeCameraModel& cam_model,
+// 	cv::Mat& cv_depth, 
+//     int u, int v, cv::Point3d& xyz)
+// {
+//     float z = static_cast<float>(cv_depth.at<uint16_t>(v, u)) * 0.001f;
+//     if(std::isnan(z) || z < min_valid_th_ || z > max_valid_th_){
+//         return false;
+// 	}
+//     xyz = cam_model.projectPixelTo3dRay(cv::Point2d(u, v)) * z;
+//     return true;
+// }
 
 bool LangSamToMap::get_pose_from_camera_to_base(
     std::string camera_frame_id,
@@ -284,7 +284,6 @@ void LangSamToMap::handle_process(
         RCLCPP_INFO(get_logger(), "Recieve Responce, mask size: %ld", response_msg->masks.size());
         if(response_msg->masks.size() != 0){
             auto lsa_map_generator = std::make_unique<LSAMapGenerator>(response_msg->masks, depth_, camera_info_, odom_frame_id_, map_resolution_, map_width_, map_height_);
-            lang_sam_map_ = lsa_map_generator->get_map_msg(now());
             double ox, oy;
             if(!get_odom(ox, oy)) return;
 
@@ -296,7 +295,7 @@ void LangSamToMap::handle_process(
 
             lsa_map_generator->create_grid_map_from_contours(tf_camera_to_odom);
 
-            nav_msgs::msg::OccupancyGrid lang_sam_map = lsa_map_generator->get_map_msg(now());
+            nav_msgs::msg::OccupancyGrid lang_sam_map = lsa_map_generator->get_map_msg();
             // ROS Message Vector to CV Vector
             // std::vector<cv::Mat> cv_bin_masks = msg_mask_to_binary(response_msg->masks);
 
@@ -318,220 +317,221 @@ void LangSamToMap::handle_process(
 			pub_lang_sam_map_->publish(lang_sam_map);
 
             // Create Visualize Masks, Contours, BBox and Publish it
-            // cv::Mat vis_mask = visualize_mask_contours_bbox(cv_rgb_masks, contours, response_msg->boxes);
-            // publish_vis_mask(vis_mask);
+            // cv::Mat vis_mask =  visualize_mask_contours_bbox(cv_rgb_masks, contours, response_msg->boxes);
+            cv::Mat vis_mask = lsa_map_generator->get_visalize_image(color_, response_msg->boxes);
+            publish_vis_mask(vis_mask);
         }
     }
     last_map_publish_t_ = this->get_clock()->now();
     processing_ = false;
 }
 
-std::vector<cv::Mat> LangSamToMap::msg_mask_to_binary(
-    const std::vector<sensor_msgs::msg::Image>& masks)
-{
-    size_t masks_s = masks.size();
-    std::vector<cv::Mat> cv_vec(masks_s);
-    std::shared_ptr<sensor_msgs::msg::Image> mask_ptr;
-    for(size_t i=0; i<masks_s; ++i){
-        mask_ptr.reset(new sensor_msgs::msg::Image(masks[i]));
-        img_msg_to_cv(mask_ptr, cv_vec[i]);
-    }
-    return cv_vec;
-}
+// std::vector<cv::Mat> LangSamToMap::msg_mask_to_binary(
+//     const std::vector<sensor_msgs::msg::Image>& masks)
+// {
+//     size_t masks_s = masks.size();
+//     std::vector<cv::Mat> cv_vec(masks_s);
+//     std::shared_ptr<sensor_msgs::msg::Image> mask_ptr;
+//     for(size_t i=0; i<masks_s; ++i){
+//         mask_ptr.reset(new sensor_msgs::msg::Image(masks[i]));
+//         img_msg_to_cv(mask_ptr, cv_vec[i]);
+//     }
+//     return cv_vec;
+// }
 
-cv::Mat LangSamToMap::add_weight_bin(const std::vector<cv::Mat>& bin_masks)
-{
+// cv::Mat LangSamToMap::add_weight_bin(const std::vector<cv::Mat>& bin_masks)
+// {
 
-    cv::Mat add_weighted_bin;
-    add_weighted_bin = cv::Mat::zeros(bin_masks[0].rows, bin_masks[0].cols, bin_masks[0].type());
-    for(auto &bin: bin_masks){
-        bin.forEach<u_char>([&](uchar &pixel, const int position[]) -> void{
-            if (pixel > 0) {
-                add_weighted_bin.at<uint8_t>(position[0], position[1]) = 1;
-            }
-        });
-    }
-    return add_weighted_bin;
-}
+//     cv::Mat add_weighted_bin;
+//     add_weighted_bin = cv::Mat::zeros(bin_masks[0].rows, bin_masks[0].cols, bin_masks[0].type());
+//     for(auto &bin: bin_masks){
+//         bin.forEach<u_char>([&](uchar &pixel, const int position[]) -> void{
+//             if (pixel > 0) {
+//                 add_weighted_bin.at<uint8_t>(position[0], position[1]) = 1;
+//             }
+//         });
+//     }
+//     return add_weighted_bin;
+// }
 
-std::vector<cv::Mat> LangSamToMap::bin_mask_to_rgb(
-    const std::vector<cv::Mat>& bin_masks)
-{
-    size_t masks_s = bin_masks.size();
-    std::vector<cv::Mat> rgb_masks(masks_s);
-    cv::Vec3b color(255, 255, 255);
-    for(size_t i=0; i<masks_s; ++i){
-        rgb_masks[i] = cv::Mat::zeros(bin_masks[i].rows, bin_masks[i].cols, CV_8UC3);
-        bin_masks[i].forEach<uchar>([&](uchar &pixel, const int position[]) -> void {
-            if (pixel > 0) {
-                rgb_masks[i].at<cv::Vec3b>(position[0], position[1]) = color;
-            }
-        });
-    }
-    return rgb_masks;
-}
+// std::vector<cv::Mat> LangSamToMap::bin_mask_to_rgb(
+//     const std::vector<cv::Mat>& bin_masks)
+// {
+//     size_t masks_s = bin_masks.size();
+//     std::vector<cv::Mat> rgb_masks(masks_s);
+//     cv::Vec3b color(255, 255, 255);
+//     for(size_t i=0; i<masks_s; ++i){
+//         rgb_masks[i] = cv::Mat::zeros(bin_masks[i].rows, bin_masks[i].cols, CV_8UC3);
+//         bin_masks[i].forEach<uchar>([&](uchar &pixel, const int position[]) -> void {
+//             if (pixel > 0) {
+//                 rgb_masks[i].at<cv::Vec3b>(position[0], position[1]) = color;
+//             }
+//         });
+//     }
+//     return rgb_masks;
+// }
 
-std::vector<std::vector<std::vector<cv::Point>>> LangSamToMap::find_each_mask_contours(
-    const std::vector<cv::Mat>& cv_rgb_masks)
-{
-    size_t mask_s = cv_rgb_masks.size();
-    std::vector<std::vector<std::vector<cv::Point>>> contours(mask_s);
-    std::vector<cv::Vec4i> hierarchy;
-    for(size_t i=0; i<mask_s; ++i){
-        cv::Mat gray, binary;
-        cv::cvtColor(cv_rgb_masks[i], gray, CV_RGB2GRAY);
-        cv::threshold(gray, binary, 150, 255, cv::THRESH_BINARY);
-        cv::findContours(binary, contours[i], hierarchy, cv::RETR_LIST, cv::CHAIN_APPROX_NONE);
-    }
-    return contours;
-}
+// std::vector<std::vector<std::vector<cv::Point>>> LangSamToMap::find_each_mask_contours(
+//     const std::vector<cv::Mat>& cv_rgb_masks)
+// {
+//     size_t mask_s = cv_rgb_masks.size();
+//     std::vector<std::vector<std::vector<cv::Point>>> contours(mask_s);
+//     std::vector<cv::Vec4i> hierarchy;
+//     for(size_t i=0; i<mask_s; ++i){
+//         cv::Mat gray, binary;
+//         cv::cvtColor(cv_rgb_masks[i], gray, CV_RGB2GRAY);
+//         cv::threshold(gray, binary, 150, 255, cv::THRESH_BINARY);
+//         cv::findContours(binary, contours[i], hierarchy, cv::RETR_LIST, cv::CHAIN_APPROX_NONE);
+//     }
+//     return contours;
+// }
 
-bool LangSamToMap::create_grid_map_from_contours(
-	std::vector<std::vector<std::vector<cv::Point>>>& contours, 
-    cv::Mat bin_mask)
-{
-    // Reset Map
-    std::fill(lang_sam_map_.data.begin(), lang_sam_map_.data.end(), -1);
+// bool LangSamToMap::create_grid_map_from_contours(
+// 	std::vector<std::vector<std::vector<cv::Point>>>& contours, 
+//     cv::Mat bin_mask)
+// {
+//     // Reset Map
+//     std::fill(lang_sam_map_.data.begin(), lang_sam_map_.data.end(), -1);
 
-    // Create Camera Model
-    image_geometry::PinholeCameraModel cam_model;
-    cam_model.fromCameraInfo(camera_info_);
+//     // Create Camera Model
+//     image_geometry::PinholeCameraModel cam_model;
+//     cam_model.fromCameraInfo(camera_info_);
 
-    // ROS->CV(depth)
-    cv::Mat cv_depth;
-    bool cvt_depth = img_msg_to_cv(depth_, cv_depth);
-	if(!cvt_depth) return false;
+//     // ROS->CV(depth)
+//     cv::Mat cv_depth;
+//     bool cvt_depth = img_msg_to_cv(depth_, cv_depth);
+// 	if(!cvt_depth) return false;
 
-    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> occupied_pc_vec;
-	RCLCPP_INFO(get_logger(), "Started to create map");
+//     std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> occupied_pc_vec;
+// 	RCLCPP_INFO(get_logger(), "Started to create map");
 
-	// contours points and depth -> pcl
-	for(size_t i=0; i<contours.size(); ++i){
-		for(size_t j=0; j<contours[i].size(); ++j){
-            pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud(new pcl::PointCloud<pcl::PointXYZ>);
-            pointcloud->points.reserve(contours[i][j].size());
-			for(auto &p: contours[i][j]){
-				cv::Point3d xyz;
-                bool cvt_res = uv_to_xyz(cam_model, cv_depth, p.x, p.y, xyz);
-			    if(!cvt_res) continue;
-                pcl::PointXYZ p_xyz(xyz.x, xyz.y, xyz.z);
-                pointcloud->points.emplace_back(p_xyz);
-			}
-            occupied_pc_vec.emplace_back(pointcloud);
-		}
-	}
-    pcl::PointCloud<pcl::PointXYZ>::Ptr unoccupied_pc(new pcl::PointCloud<pcl::PointXYZ>);
-    unoccupied_pc->points.reserve(bin_mask.rows*bin_mask.cols);
-    bin_mask.forEach<uchar>([&](uchar &pixel, const int position[]) -> void {
-        if (pixel > 0) {
-            cv::Point3d xyz;
-            bool cvt_res = uv_to_xyz(cam_model, cv_depth, position[1], position[0], xyz);
-            if(cvt_res){
-                pcl::PointXYZ p_xyz(xyz.x, xyz.y, xyz.z);
-                unoccupied_pc->points.emplace_back(p_xyz);
-            }
-        }
-    });
-	RCLCPP_INFO(get_logger(), "Completed to create pointcloud");
+// 	// contours points and depth -> pcl
+// 	for(size_t i=0; i<contours.size(); ++i){
+// 		for(size_t j=0; j<contours[i].size(); ++j){
+//             pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud(new pcl::PointCloud<pcl::PointXYZ>);
+//             pointcloud->points.reserve(contours[i][j].size());
+// 			for(auto &p: contours[i][j]){
+// 				cv::Point3d xyz;
+//                 bool cvt_res = uv_to_xyz(cam_model, cv_depth, p.x, p.y, xyz);
+// 			    if(!cvt_res) continue;
+//                 pcl::PointXYZ p_xyz(xyz.x, xyz.y, xyz.z);
+//                 pointcloud->points.emplace_back(p_xyz);
+// 			}
+//             occupied_pc_vec.emplace_back(pointcloud);
+// 		}
+// 	}
+//     pcl::PointCloud<pcl::PointXYZ>::Ptr unoccupied_pc(new pcl::PointCloud<pcl::PointXYZ>);
+//     unoccupied_pc->points.reserve(bin_mask.rows*bin_mask.cols);
+//     bin_mask.forEach<uchar>([&](uchar &pixel, const int position[]) -> void {
+//         if (pixel > 0) {
+//             cv::Point3d xyz;
+//             bool cvt_res = uv_to_xyz(cam_model, cv_depth, position[1], position[0], xyz);
+//             if(cvt_res){
+//                 pcl::PointXYZ p_xyz(xyz.x, xyz.y, xyz.z);
+//                 unoccupied_pc->points.emplace_back(p_xyz);
+//             }
+//         }
+//     });
+// 	RCLCPP_INFO(get_logger(), "Completed to create pointcloud");
 	
-	// Get TF camera frame->odom
-    tf2::Transform tf;
-    bool get_tf = get_pose_from_camera_to_odom(color_->header.frame_id, tf);
-    if(!get_tf) return false;
+// 	// Get TF camera frame->odom
+//     tf2::Transform tf;
+//     bool get_tf = get_pose_from_camera_to_odom(color_->header.frame_id, tf);
+//     if(!get_tf) return false;
 
-    // Transform coordinate camera frame->odom
-    for(auto &pc: occupied_pc_vec){
-        pcl_ros::transformPointCloud(*pc, *pc, tf);
-    }
-    // pcl_ros::transformPointCloud(*unoccupied_pc, *unoccupied_pc, tf);
+//     // Transform coordinate camera frame->odom
+//     for(auto &pc: occupied_pc_vec){
+//         pcl_ros::transformPointCloud(*pc, *pc, tf);
+//     }
+//     // pcl_ros::transformPointCloud(*unoccupied_pc, *unoccupied_pc, tf);
 
-    // Point xy -> Grid xy
-	// z->x, x->-y
-	pcl::PointCloud<pcl::PointXYZ>::iterator pt;
-    // for (pt=unoccupied_pc->points.begin(); pt < unoccupied_pc->points.end()-1; pt++){
-    //     int index = xy_to_index((*pt).x, (*pt).y);
-    //     if(index == -1) continue;
-    //     lang_sam_map_.data[index] = 0;
-    // }
-	for(auto &pc: occupied_pc_vec){
- 		for (pt=pc->points.begin(); pt < pc->points.end(); pt++){
-            bresenham(
-                static_cast<int>(((*pt).x - lang_sam_map_.info.origin.position.x) / map_resolution_), 
-                static_cast<int>(((*pt).y - lang_sam_map_.info.origin.position.y) / map_resolution_));
-			int index = xy_to_index((*pt).x, (*pt).y);
-            if(index != -1) lang_sam_map_.data[index] = 100;
-		}
-	}
+//     // Point xy -> Grid xy
+// 	// z->x, x->-y
+// 	pcl::PointCloud<pcl::PointXYZ>::iterator pt;
+//     // for (pt=unoccupied_pc->points.begin(); pt < unoccupied_pc->points.end()-1; pt++){
+//     //     int index = xy_to_index((*pt).x, (*pt).y);
+//     //     if(index == -1) continue;
+//     //     lang_sam_map_.data[index] = 0;
+//     // }
+// 	for(auto &pc: occupied_pc_vec){
+//  		for (pt=pc->points.begin(); pt < pc->points.end(); pt++){
+//             bresenham(
+//                 static_cast<int>(((*pt).x - lang_sam_map_.info.origin.position.x) / map_resolution_), 
+//                 static_cast<int>(((*pt).y - lang_sam_map_.info.origin.position.y) / map_resolution_));
+// 			int index = xy_to_index((*pt).x, (*pt).y);
+//             if(index != -1) lang_sam_map_.data[index] = 100;
+// 		}
+// 	}
     
-	RCLCPP_INFO(get_logger(), "Completed to create map");
-    double t = tf2::getYaw(lang_sam_map_.info.origin.orientation);
-    // RCLCPP_INFO(get_logger(), "Map Origin: x: %lf, y: %lf, t: %lf", 
-    //     lang_sam_map_.info.origin.position.x, lang_sam_map_.info.origin.position.y, t);
-	return true;
-}
+// 	RCLCPP_INFO(get_logger(), "Completed to create map");
+//     double t = tf2::getYaw(lang_sam_map_.info.origin.orientation);
+//     // RCLCPP_INFO(get_logger(), "Map Origin: x: %lf, y: %lf, t: %lf", 
+//     //     lang_sam_map_.info.origin.position.x, lang_sam_map_.info.origin.position.y, t);
+// 	return true;
+// }
 
-int LangSamToMap::xy_to_index(double x, double y)
-{
-    int mx = static_cast<int>((x-lang_sam_map_.info.origin.position.x)/map_resolution_);
-    int my = static_cast<int>((y-lang_sam_map_.info.origin.position.y)/map_resolution_);
-    if(mx < 0 || mx >= map_width_ || my < 0 || my >= map_height_) return -1;
-    return my * map_width_ + mx;
-}
+// int LangSamToMap::xy_to_index(double x, double y)
+// {
+//     int mx = static_cast<int>((x-lang_sam_map_.info.origin.position.x)/map_resolution_);
+//     int my = static_cast<int>((y-lang_sam_map_.info.origin.position.y)/map_resolution_);
+//     if(mx < 0 || mx >= map_width_ || my < 0 || my >= map_height_) return -1;
+//     return my * map_width_ + mx;
+// }
 
-void LangSamToMap::bresenham(int x_e, int y_e)
-{
-    int x0 = static_cast<int>(map_width_ / 2);
-    int y0 = static_cast<int>(map_height_ / 2);
-    // RCLCPP_INFO(get_logger(), "(x0: %d, y0: %d)", x0, y0);
-    int x1 = x_e;
-    int y1 = y_e;
-    // RCLCPP_INFO(get_logger(), "(x1: %d, y1: %d)", x1, y1);
+// void LangSamToMap::bresenham(int x_e, int y_e)
+// {
+//     int x0 = static_cast<int>(map_width_ / 2);
+//     int y0 = static_cast<int>(map_height_ / 2);
+//     // RCLCPP_INFO(get_logger(), "(x0: %d, y0: %d)", x0, y0);
+//     int x1 = x_e;
+//     int y1 = y_e;
+//     // RCLCPP_INFO(get_logger(), "(x1: %d, y1: %d)", x1, y1);
 
-    int dx = std::abs(x1 - x0);
-    int dy = std::abs(y1 - y0);
+//     int dx = std::abs(x1 - x0);
+//     int dy = std::abs(y1 - y0);
 
-    int sx = (x0 < x1) ? 1 : -1;
-    int sy = (y0 < y1) ? 1 : -1;
+//     int sx = (x0 < x1) ? 1 : -1;
+//     int sy = (y0 < y1) ? 1 : -1;
 
-    int err = dx - dy;
+//     int err = dx - dy;
 
-    while (true) {
-        int fill_i = x0+y0*map_height_;
-        if(fill_i < 0 || x0 > map_width_ || y0 > map_height_) break;
-        if(fill_i != 0 || lang_sam_map_.data[fill_i] != 100) lang_sam_map_.data[fill_i] = 0;
-        // RCLCPP_INFO(get_logger(), "fill index: %d", fill_i);
+//     while (true) {
+//         int fill_i = x0+y0*map_height_;
+//         if(fill_i < 0 || x0 > map_width_ || y0 > map_height_) break;
+//         if(fill_i != 0 || lang_sam_map_.data[fill_i] != 100) lang_sam_map_.data[fill_i] = 0;
+//         // RCLCPP_INFO(get_logger(), "fill index: %d", fill_i);
 
-        if (x0 == x1 && y0 == y1) break;
+//         if (x0 == x1 && y0 == y1) break;
 
-        int e2 = 2 * err;
-        if (e2 > -dy) { err -= dy; x0 += sx; }
-        if (e2 <  dx) { err += dx; y0 += sy; }
-    }
-}
+//         int e2 = 2 * err;
+//         if (e2 > -dy) { err -= dy; x0 += sx; }
+//         if (e2 <  dx) { err += dx; y0 += sy; }
+//     }
+// }
 
-cv::Mat LangSamToMap::visualize_mask_contours_bbox(
-        const std::vector<cv::Mat>& cv_rgb_masks, 
-        const std::vector<std::vector<std::vector<cv::Point>>>& contours,
-		const std::vector<sensor_msgs::msg::RegionOfInterest>& boxes)
-{
-    cv::Mat cv_color;
-    img_msg_to_cv(color_, cv_color);
-    size_t mask_s = cv_rgb_masks.size();
-    for(size_t i=0; i<mask_s; ++i){
-        cv::addWeighted(cv_color, 1.0, cv_rgb_masks[i], 0.5, 0.0, cv_color);
-        cv::drawContours(cv_color, contours[i], -1, cv::Scalar(255, 0, 0), 1);
-    }
-	for(auto &box: boxes){
-		// バウンディングボックスを描画
-		cv::rectangle(cv_color, 
-            cv::Point(box.x_offset, box.y_offset), 
-            cv::Point(box.x_offset+box.width, box.y_offset+box.height), 
-            cv::Scalar(0, 0, 255), 1);
-	}
-    return cv_color;
-}
+// cv::Mat LangSamToMap::visualize_mask_contours_bbox(
+//         const std::vector<cv::Mat>& cv_rgb_masks, 
+//         const std::vector<std::vector<std::vector<cv::Point>>>& contours,
+// 		const std::vector<sensor_msgs::msg::RegionOfInterest>& boxes)
+// {
+//     cv::Mat cv_color;
+//     img_msg_to_cv(color_, cv_color);
+//     size_t mask_s = cv_rgb_masks.size();
+//     for(size_t i=0; i<mask_s; ++i){
+//         cv::addWeighted(cv_color, 1.0, cv_rgb_masks[i], 0.5, 0.0, cv_color);
+//         cv::drawContours(cv_color, contours[i], -1, cv::Scalar(255, 0, 0), 1);
+//     }
+// 	for(auto &box: boxes){
+// 		// バウンディングボックスを描画
+// 		cv::rectangle(cv_color, 
+//             cv::Point(box.x_offset, box.y_offset), 
+//             cv::Point(box.x_offset+box.width, box.y_offset+box.height), 
+//             cv::Scalar(0, 0, 255), 1);
+// 	}
+//     return cv_color;
+// }
 
-void LangSamToMap::publish_vis_mask(cv::Mat& input_img)
+void LangSamToMap::publish_vis_mask(cv::Mat & input_img)
 {
     sensor_msgs::msg::Image msg;
     bool cvt_vis = cv_to_msg(input_img, msg);

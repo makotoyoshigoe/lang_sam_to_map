@@ -23,7 +23,7 @@ LSAMapGenerator::LSAMapGenerator(
 void LSAMapGenerator::create_grid_map_from_contours(tf2::Transform & tf_camera_to_odom)
 {
     // Reset Map
-    this->reset_map();
+    reset_map();
 
 	RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Started to create map");
 
@@ -109,7 +109,6 @@ void LSAMapGenerator::find_unoccupied_3d_point(
 
 void LSAMapGenerator::bresenham(int x_e, int y_e)
 {
-
     int x0 = static_cast<int>(width_ / 2);
     int y0 = static_cast<int>(height_ / 2);
     // int x0, y0;
@@ -131,7 +130,6 @@ void LSAMapGenerator::bresenham(int x_e, int y_e)
 
     while (true) {
         if(is_out_range(x0, y0)) break;
-
         if (x0 == x1 && y0 == y1) break;
 
         if(data_[x0][y0] != 100) data_[x0][y0] = 0;
@@ -140,6 +138,13 @@ void LSAMapGenerator::bresenham(int x_e, int y_e)
         if (e2 > -dy) { err -= dy; x0 += sx; }
         if (e2 <  dx) { err += dx; y0 += sy; }
     }
+}
+
+cv::Mat LSAMapGenerator::get_visalize_image(
+    sensor_msgs::msg::Image::ConstSharedPtr base, 
+    std::vector<sensor_msgs::msg::RegionOfInterest> & boxes)
+{
+    return mask_images_->vis_mask_contours_bbox(base, boxes);
 }
 
 LSAMapGenerator::~LSAMapGenerator(){}
