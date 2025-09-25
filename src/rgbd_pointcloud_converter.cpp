@@ -23,7 +23,7 @@ void RGBDPointcloudConverter::create_point_cloud(
     rgbd_image_->get_image_size(rows, cols);
     output->points.reserve(rows * cols);
     
-    RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Before Create Pointcloud");
+    // RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Before Create Pointcloud");
 
     // Create PointCloud
     for (int v = 0; v < rows; ++v){
@@ -37,12 +37,12 @@ void RGBDPointcloudConverter::create_point_cloud(
             output->points.emplace_back(p);
         }
     }
-    RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Before Set Cloud Info");
+    // RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Before Set Cloud Info");
     // Set PointCloud Infomation
     output->width = output->points.size();
 	output->height = 1;
 	output->is_dense = false;
-    RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "After Set Cloud Info");
+    // RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "After Set Cloud Info");
 }
 
 void RGBDPointcloudConverter::down_sampling(
