@@ -7,6 +7,8 @@ namespace lang_sam_to_map{
 MaskImages::MaskImages(const std::vector<sensor_msgs::msg::Image> masks_msg_vec) : Image()
 {
     msg_mask_to_binary(masks_msg_vec);
+    add_weight_bin();
+    bin_mask_to_rgb();
 }
 
 void MaskImages::msg_mask_to_binary(const std::vector<sensor_msgs::msg::Image> masks_msg_vec)
@@ -43,13 +45,18 @@ void MaskImages::bin_mask_to_rgb(void)
     });
 }
 
-void MaskImages::find_contours(void)
+void MaskImages::find_contours(std::vector<std::vector<cv::Point>> & contours)
 {
     std::vector<cv::Vec4i> hierarchy;
     cv::Mat gray, binary;
     cv::cvtColor(cv_rgb_mask_, gray, CV_RGB2GRAY);
     cv::threshold(gray, binary, 150, 255, cv::THRESH_BINARY);
-    cv::findContours(binary, contours_, hierarchy, cv::RETR_LIST, cv::CHAIN_APPROX_NONE);
+    cv::findContours(binary, contours, hierarchy, cv::RETR_LIST, cv::CHAIN_APPROX_NONE);
+}
+
+void MaskImages::get_bin_mask(cv::Mat & output)
+{
+    output = cv_aw_bin_mask_.clone();
 }
 
 MaskImages::~MaskImages(){}

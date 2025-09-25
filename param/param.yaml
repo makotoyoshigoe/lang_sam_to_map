@@ -6,7 +6,7 @@ lang_sam_to_map:
       text_threshold: 0.25
     node_freq: 20
     interval:
-      time: 2.0
+      time: 5.0
       distance: 5
     pointcloud: 
       publish: false
@@ -16,6 +16,6 @@ lang_sam_to_map:
       min: 1.5
       max: 20.0
     map:
-      resolution: 0.05
+      resolution: 0.1
     base_frame_id: "base_footprint"
     odom_frame_id: "odom"

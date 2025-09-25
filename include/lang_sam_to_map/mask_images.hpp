@@ -15,7 +15,8 @@ class MaskImages : public Image
     void msg_mask_to_binary(const std::vector<sensor_msgs::msg::Image> masks_msg_vec);
     void add_weight_bin(void);
     void bin_mask_to_rgb(void);
-    void find_contours(void);
+    void find_contours(std::vector<std::vector<cv::Point>> & contours);
+    void get_bin_mask(cv::Mat & output);
 
     private:
     std::vector<cv::Mat> cv_bin_mask_vec_;

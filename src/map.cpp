@@ -38,28 +38,25 @@ void Map::reset_map(void)
     data_.assign(height_, std::vector<int8_t>(width_, -1));
 }
 
-void Map::xy_to_index(float x, float y, int & ix, int & iy)
+bool Map::xy_to_index(float x, float y, int & ix, int & iy)
 {
 	ix = static_cast<int>((x - ox_) / resolution_);
 	iy = static_cast<int>((y - oy_) / resolution_);
-	if(ix < 0 || ix > width_ || iy < 0 || iy > height_){
-        ix = -1;iy = -1;
-    }
+	if(ix < 0 || ix > width_ || iy < 0 || iy > height_) return false;
+    return true;
 }
 
 nav_msgs::msg::OccupancyGrid Map::get_map_msg(rclcpp::Time stamp)
 {
     nav_msgs::msg::OccupancyGrid msg;
     msg.header.frame_id = frame_id_;
-    msg.header.stamp = stamp;
+    // msg.header.stamp = stamp;
     msg.info.height = height_;
     msg.info.origin.position.x = ox_;
     msg.info.origin.position.y = oy_;
     msg.info.resolution = resolution_;
     msg.info.width = width_;
-    // RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Before convert msg");
     cvt_2d_to_1d(msg);
-    // RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "After convert msg");
     return msg;
 }
 
@@ -76,7 +73,12 @@ void Map::cvt_2d_to_1d(nav_msgs::msg::OccupancyGrid & msg)
 void Map::fill_bottom(void)
 {
     for(int i=0; i<width_; ++i) data_[i][0] = 100;
-    // RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Fill");
+}
+
+void Map::fill_point(float x, float y, int8_t v)
+{
+    int ix, iy;
+    if(xy_to_index(x, y, ix, iy)) data_[ix][iy] = v;
 }
 
 Map::~Map(){}

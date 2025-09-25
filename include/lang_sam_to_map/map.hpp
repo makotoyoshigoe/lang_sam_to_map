@@ -17,11 +17,12 @@ class Map
 		float get_map_size(void);
         void get_data(std::vector<uint8_t> & data);
         void set_origin(float ox, float oy);
-		void xy_to_index(float x, float y, int & ix, int & iy);
+		bool xy_to_index(float x, float y, int & ix, int & iy);
         void reset_map(void);
         nav_msgs::msg::OccupancyGrid get_map_msg(rclcpp::Time stamp);
         void cvt_2d_to_1d(nav_msgs::msg::OccupancyGrid & msg);
         void fill_bottom(void);
+        void fill_point(float x, float y, int8_t v);
 
     protected:
 		std::string frame_id_;

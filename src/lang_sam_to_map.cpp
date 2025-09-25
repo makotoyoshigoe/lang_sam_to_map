@@ -284,9 +284,19 @@ void LangSamToMap::handle_process(
         RCLCPP_INFO(get_logger(), "Recieve Responce, mask size: %ld", response_msg->masks.size());
         if(response_msg->masks.size() != 0){
             auto lsa_map_generator = std::make_unique<LSAMapGenerator>(response_msg->masks, depth_, camera_info_, odom_frame_id_, map_resolution_, map_width_, map_height_);
-            lsa_map_generator->fill_bottom();
             lang_sam_map_ = lsa_map_generator->get_map_msg(now());
+            double ox, oy;
+            if(!get_odom(ox, oy)) return;
 
+            lsa_map_generator->set_origin(ox - max_valid_th_ / 2, oy - max_valid_th_ / 2);
+
+            // Get TF camera frame->odom
+            tf2::Transform tf_camera_to_odom;
+            if(!get_pose_from_camera_to_odom(color_->header.frame_id, tf_camera_to_odom)) return;
+
+            lsa_map_generator->create_grid_map_from_contours(tf_camera_to_odom);
+
+            nav_msgs::msg::OccupancyGrid lang_sam_map = lsa_map_generator->get_map_msg(now());
             // ROS Message Vector to CV Vector
             // std::vector<cv::Mat> cv_bin_masks = msg_mask_to_binary(response_msg->masks);
 
@@ -305,7 +315,7 @@ void LangSamToMap::handle_process(
 			// Transform contours 2D points to occupied grid map
 			// bool create_map = create_grid_map_from_contours(contours, add_weighted_bin[0]);
 			// if(create_map) pub_lang_sam_map_->publish(lang_sam_map_);
-			pub_lang_sam_map_->publish(lang_sam_map_);
+			pub_lang_sam_map_->publish(lang_sam_map);
 
             // Create Visualize Masks, Contours, BBox and Publish it
             // cv::Mat vis_mask = visualize_mask_contours_bbox(cv_rgb_masks, contours, response_msg->boxes);
