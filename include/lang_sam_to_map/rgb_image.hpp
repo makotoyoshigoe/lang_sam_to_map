@@ -3,26 +3,21 @@
 
 #pragma once
 
-#include<cv_bridge/cv_bridge.h>
+#include "lang_sam_to_map/image.hpp"
 
 namespace lang_sam_to_map{
-class RGBImage
+class RGBImage : public Image
 {
     public:
     RGBImage(sensor_msgs::msg::Image::ConstSharedPtr msg);
+    RGBImage(void);
     ~RGBImage();
-    bool img_msg_to_cv(
-        sensor_msgs::msg::Image::ConstSharedPtr img_msg,
-        cv::Mat & cv_image);
-    bool cv_to_msg(
-        const std_msgs::msg::Header & header, 
-        const cv::Mat & input_img,
-        sensor_msgs::msg::Image & msg);
-    cv::Mat cv_color_;
     cv::Vec3b get_pixel_color(int u, int v);
     void get_image_size(int & rows, int & cols);
+    void set_image(cv::Mat image);
 
     private:
+    cv::Mat cv_color_;
 };
 
 }
