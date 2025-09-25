@@ -51,9 +51,13 @@ void LSAMapGenerator::create_grid_map_from_contours(tf2::Transform & tf_camera_t
     // }
 	for(auto &pc: occupied_pc_vec){
  		for (pt=pc->points.begin(); pt < pc->points.end(); pt++){
-            // bresenham(
-            //     static_cast<int>(((*pt).x - ox_) / resolution_), 
-            //     static_cast<int>(((*pt).y - oy_) / resolution_));
+            bresenham(
+                static_cast<int>(((*pt).x - ox_) / resolution_), 
+                static_cast<int>(((*pt).y - oy_) / resolution_));
+            int ix, iy;
+            if(!xy_to_index((*pt).x, (*pt).y, ix, iy)) continue;
+            // RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "ix, iy: %d, %d", ix, iy);
+            data_[ix][iy] = 100;
             // fill_point((*pt).x, (*pt).y, 100);
 		}
 	}
@@ -126,7 +130,7 @@ void LSAMapGenerator::bresenham(int x_e, int y_e)
     int err = dx - dy;
 
     while (true) {
-        if(x0 < 0 || x0 > width_-1 || y0 < 0 || y0 > height_-1) break;
+        if(is_out_range(x0, y0)) break;
 
         if (x0 == x1 && y0 == y1) break;
 

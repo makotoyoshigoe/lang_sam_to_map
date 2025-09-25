@@ -42,7 +42,7 @@ bool Map::xy_to_index(float x, float y, int & ix, int & iy)
 {
 	ix = static_cast<int>((x - ox_) / resolution_);
 	iy = static_cast<int>((y - oy_) / resolution_);
-	if(ix < 0 || ix > width_ || iy < 0 || iy > height_) return false;
+	if(is_out_range(ix, iy)) return false;
     return true;
 }
 
@@ -79,6 +79,11 @@ void Map::fill_point(float x, float y, int8_t v)
 {
     int ix, iy;
     if(xy_to_index(x, y, ix, iy)) data_[ix][iy] = v;
+}
+
+bool Map::is_out_range(int ix, int iy)
+{
+    return ix < 0 || ix >= width_ || iy < 0 || iy >= height_;
 }
 
 Map::~Map(){}

@@ -23,6 +23,7 @@ class Map
         void cvt_2d_to_1d(nav_msgs::msg::OccupancyGrid & msg);
         void fill_bottom(void);
         void fill_point(float x, float y, int8_t v);
+        bool is_out_range(int ix, int iy);
 
     protected:
 		std::string frame_id_;
