@@ -12,8 +12,13 @@ class DepthImage : public Image{
     DepthImage(
         sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 
         sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info_msg);
+    DepthImage(void);
     ~DepthImage();
     bool uv_to_xyz(int u, int v, cv::Point3d & xyz);
+    void set_depth_image_from_msg(
+        sensor_msgs::msg::Image::ConstSharedPtr msg);
+    void set_camera_model_from_msg(
+        sensor_msgs::msg::CameraInfo::ConstSharedPtr msg);
 
     private:
     cv::Mat cv_depth_;

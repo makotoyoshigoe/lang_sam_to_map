@@ -14,6 +14,7 @@ class RGBDImage : public lang_sam_to_map::RGBImage, public lang_sam_to_map::Dept
         sensor_msgs::msg::Image::ConstSharedPtr color_msg,
         sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 
         sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info_msg);
+    RGBDImage(void);
     ~RGBDImage();
     
     private:

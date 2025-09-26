@@ -3,6 +3,9 @@
 
 #pragma once
 
+#include "lang_sam_to_map/core/rgbd_pointcloud_converter.hpp"
+#include "lang_sam_to_map/core/lsa_map_generator.hpp"
+
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -32,10 +35,7 @@ public:
         sensor_msgs::msg::Image::ConstSharedPtr depth,
         sensor_msgs::msg::Image::ConstSharedPtr color,
         sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info);
-    void publish_pointcloud(
-        sensor_msgs::msg::Image::ConstSharedPtr color_msg, 
-        sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 
-        sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info);
+    void publish_pointcloud(void);
     bool get_pose_from_camera_to_base(
         std::string camera_frame_id,
         tf2::Transform& tf);
@@ -83,5 +83,8 @@ private:
     sensor_msgs::msg::Image::ConstSharedPtr depth_;
     sensor_msgs::msg::Image::ConstSharedPtr color_;
     sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info_;
+
+    std::unique_ptr<RGBDPointcloudConverter> rgbd_pc_converter_;
+    std::unique_ptr<LSAMapGenerator> lsa_map_generator_;
 };
 }

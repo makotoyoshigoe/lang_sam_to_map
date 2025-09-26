@@ -53,11 +53,13 @@ void LangSamToMap::init_param(void)
     time_interval_ = this->get_parameter("interval.time").as_double();
     distance_interval_ = this->get_parameter("interval.distance").as_int();
     publish_pointcloud_ = this->get_parameter("pointcloud.publish").as_bool();
+    vg_leaf_size_ = this->get_parameter("pointcloud.voxel_grid.leaf_size").as_double();
     min_valid_th_ = this->get_parameter("valid_threshold.min").as_double();
     max_valid_th_ = this->get_parameter("valid_threshold.max").as_double();
     odom_frame_id_ = this->get_parameter("odom_frame_id").as_string();
     base_frame_id_ = this->get_parameter("base_frame_id").as_string();
     map_resolution_ = this->get_parameter("map.resolution").as_double();
+    rgbd_pc_converter_.reset(new RGBDPointcloudConverter(vg_leaf_size_, min_valid_th_, max_valid_th_));
 }
 
 void LangSamToMap::init_pubsub(void)
@@ -121,8 +123,9 @@ void LangSamToMap::cb_message(
         sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info)
 {
     if(!init_tf_) init_tf();
-    if(publish_pointcloud_){
-        publish_pointcloud(color, depth, camera_info);
+    if(publish_pointcloud_ && color != nullptr && depth != nullptr){
+        rgbd_pc_converter_->update_images_info(color, depth, camera_info);
+        publish_pointcloud();
     }
     if(!processing_){
         color_ = color;
@@ -132,22 +135,15 @@ void LangSamToMap::cb_message(
     }
 }
 
-void LangSamToMap::publish_pointcloud(
-        sensor_msgs::msg::Image::ConstSharedPtr color_msg,
-        sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 
-        sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info)
+void LangSamToMap::publish_pointcloud(void)
 {
-    if(color_msg == nullptr || depth_msg == nullptr) return;
-
     // RGB画像、深度画像->3次元色付き点群
-    auto rgbd_pc_cvt = std::make_unique<RGBDPointcloudConverter>(color_msg, depth_msg, camera_info);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc(new pcl::PointCloud<pcl::PointXYZRGB>), down_sampled_pc(new pcl::PointCloud<pcl::PointXYZRGB>);
-    rgbd_pc_cvt->create_point_cloud(pc, max_valid_th_, min_valid_th_);
-    rgbd_pc_cvt->down_sampling(pc, down_sampled_pc, vg_leaf_size_);
+    rgbd_pc_converter_->create_point_cloud(pc, max_valid_th_, min_valid_th_);
+    rgbd_pc_converter_->down_sampling(pc, down_sampled_pc, vg_leaf_size_);
 
     // Publish Pointcloud
-    sensor_msgs::msg::PointCloud2 output_msg = rgbd_pc_cvt->pcl_to_msg(down_sampled_pc);
-    output_msg.header.frame_id = color_msg->header.frame_id;
+    sensor_msgs::msg::PointCloud2 output_msg = rgbd_pc_converter_->pcl_to_msg(down_sampled_pc);
     output_msg.header.stamp = now();
     pub_color_pc2_->publish(output_msg);
 }

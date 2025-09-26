@@ -14,7 +14,8 @@ class RGBImage : public Image
     ~RGBImage();
     cv::Vec3b get_pixel_color(int u, int v);
     void get_image_size(int & rows, int & cols);
-    void set_image(cv::Mat image);
+    void set_color_image_from_msg(
+        sensor_msgs::msg::Image::ConstSharedPtr msg);
 
     private:
     cv::Mat cv_color_;

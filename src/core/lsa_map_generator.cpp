@@ -111,14 +111,10 @@ void LSAMapGenerator::bresenham(int x_e, int y_e)
 {
     int x0 = static_cast<int>(width_ / 2);
     int y0 = static_cast<int>(height_ / 2);
-    // int x0, y0;
-    // if(!xy_to_index(ox_, oy_, x0, y0)) return;
-	// RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "(x0, y0) = (%d, %d)", x0, y0);
+    if(is_out_range(x0, y0)) return;
 
-    // RCLCPP_INFO(get_logger(), "(x0: %d, y0: %d)", x0, y0);
     int x1 = x_e;
     int y1 = y_e;
-    // RCLCPP_INFO(get_logger(), "(x1: %d, y1: %d)", x1, y1);
 
     int dx = std::abs(x1 - x0);
     int dy = std::abs(y1 - y0);

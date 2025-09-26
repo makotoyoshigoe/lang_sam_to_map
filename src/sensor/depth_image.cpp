@@ -9,8 +9,14 @@ DepthImage::DepthImage(
     sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info_msg)
 : Image()
 {
-    img_msg_to_cv(depth_msg, cv_depth_);
-    cam_model_.fromCameraInfo(camera_info_msg);
+    set_depth_image_from_msg(depth_msg);
+    set_camera_model_from_msg(camera_info_msg);
+}
+
+DepthImage::DepthImage(void)
+: Image()
+{
+    
 }
 
 bool DepthImage::uv_to_xyz(int u, int v, cv::Point3d & xyz)
@@ -19,6 +25,18 @@ bool DepthImage::uv_to_xyz(int u, int v, cv::Point3d & xyz)
     if(std::isnan(z)) return false;
     xyz = cam_model_.projectPixelTo3dRay(cv::Point2d(u, v)) * z;
     return true;
+}
+
+void DepthImage::set_depth_image_from_msg(
+    sensor_msgs::msg::Image::ConstSharedPtr msg)
+{
+    img_msg_to_cv(msg, cv_depth_);
+}
+
+void DepthImage::set_camera_model_from_msg(
+    sensor_msgs::msg::CameraInfo::ConstSharedPtr msg)
+{
+    cam_model_.fromCameraInfo(msg);
 }
 
 DepthImage::~DepthImage(){}

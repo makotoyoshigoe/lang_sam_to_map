@@ -6,6 +6,7 @@
 #include <rclcpp/time.hpp>
 #include "lang_sam_to_map/sensor/rgbd_image.hpp"
 #include <pcl_ros/transforms.hpp>
+#include <pcl/filters/voxel_grid.h>
 
 namespace lang_sam_to_map{
 class RGBDPointcloudConverter{
@@ -14,7 +15,13 @@ class RGBDPointcloudConverter{
         sensor_msgs::msg::Image::ConstSharedPtr color_msg,
         sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 
         sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info);
+    RGBDPointcloudConverter(
+        float vg_leaf_size, float max_depth_th, float min_depth_th);
     ~RGBDPointcloudConverter();
+    void update_images_info(
+        sensor_msgs::msg::Image::ConstSharedPtr color_msg, 
+        sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 
+        sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info);
     void create_point_cloud(
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr & output, 
         float max_depth_th, float min_depth_th);
@@ -25,6 +32,9 @@ class RGBDPointcloudConverter{
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr & cloud);
 
     private:
+    std::string rgbd_camera_frame_id_;
     std::unique_ptr<RGBDImage> rgbd_image_;
+    float max_depth_th_, min_depth_th_;
+    pcl::VoxelGrid<pcl::PointXYZRGB>::Ptr voxel_grid_filter_;
 };
 }
