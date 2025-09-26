@@ -12,15 +12,18 @@ class MaskImages : public Image
 {
     public:
     MaskImages(const std::vector<sensor_msgs::msg::Image> masks_msg_vec);
+    MaskImages(void);
     ~MaskImages();
+    void pre_process(const std::vector<sensor_msgs::msg::Image> masks_msg_vec);
+    void set_mask(const std::vector<sensor_msgs::msg::Image> masks_msg_vec);
     void msg_mask_to_binary(const std::vector<sensor_msgs::msg::Image> masks_msg_vec);
     void add_weight_bin(void);
     void bin_mask_to_rgb(void);
-    void find_contours(std::vector<std::vector<cv::Point>> & contours);
+    void find_contours(void);
     void get_bin_mask(cv::Mat & output);
-    cv::Mat vis_mask_contours_bbox(
-        sensor_msgs::msg::Image::ConstSharedPtr base, 
-        std::vector<sensor_msgs::msg::RegionOfInterest> & boxes);
+    void get_contours(std::vector<std::vector<cv::Point>> & output);
+    void get_image_size(int & rows, int & cols);
+    void draw_mask_contours_bbox(cv::Mat & base);
 
     private:
     std::vector<cv::Mat> cv_bin_mask_vec_;

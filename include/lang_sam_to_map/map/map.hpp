@@ -18,7 +18,7 @@ class Map
         void set_origin(float ox, float oy);
 		bool xy_to_index(float x, float y, int & ix, int & iy);
         void reset_map(void);
-        nav_msgs::msg::OccupancyGrid get_map_msg(void);
+        void get_map_msg(nav_msgs::msg::OccupancyGrid & output);
         void cvt_2d_to_1d(nav_msgs::msg::OccupancyGrid & msg);
         void fill_bottom(void);
         void fill_point(float x, float y, int8_t v);

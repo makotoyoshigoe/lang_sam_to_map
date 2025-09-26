@@ -30,7 +30,6 @@ public:
     void init_pubsub(void);
     void init_client(void);
     void init_tf(void);
-	void init_map(void);
     void cb_message(
         sensor_msgs::msg::Image::ConstSharedPtr depth,
         sensor_msgs::msg::Image::ConstSharedPtr color,
@@ -43,14 +42,9 @@ public:
         std::string camera_frame_id,
         tf2::Transform & tf);
     bool get_odom(double & x, double & y);
-    bool send_request(void);
+    void send_request(void);
     void handle_process(
         rclcpp::Client<ros2_lang_sam_msgs::srv::TextSegmentation>::SharedFuture future);
-    void publish_vis_mask(
-        cv::Mat & input_img);
-    bool cv_to_msg(
-        cv::Mat & input_img, 
-        sensor_msgs::msg::Image & msg);
     int get_node_freq(void);
     bool flg_send_request(void);
     double get_diff_time(void);
@@ -72,17 +66,14 @@ private:
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
     std::shared_ptr<ros2_lang_sam_msgs::srv::TextSegmentation::Request> request_msg_;
-    std::shared_ptr<ros2_lang_sam_msgs::srv::TextSegmentation::Response> response_msg_;
-    float box_th_, text_th_, min_valid_th_, max_valid_th_, time_interval_, map_resolution_, vg_leaf_size_;
-    std::string text_prompt_;
+    float time_interval_;
     bool processing_, publish_pointcloud_, init_msg_receive_, init_request_, init_tf_;
-    int node_freq_, distance_interval_, map_width_, map_height_;
+    int node_freq_, distance_interval_;
     rclcpp::Time last_map_publish_t_;
     std::string base_frame_id_, odom_frame_id_;
 
-    sensor_msgs::msg::Image::ConstSharedPtr depth_;
-    sensor_msgs::msg::Image::ConstSharedPtr color_;
-    sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info_;
+    sensor_msgs::msg::Image::ConstSharedPtr depth_msg_, color_msg_;
+    sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info_msg_;
 
     std::unique_ptr<RGBDPointcloudConverter> rgbd_pc_converter_;
     std::unique_ptr<LSAMapGenerator> lsa_map_generator_;

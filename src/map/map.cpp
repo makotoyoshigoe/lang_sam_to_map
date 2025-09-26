@@ -46,17 +46,15 @@ bool Map::xy_to_index(float x, float y, int & ix, int & iy)
     return true;
 }
 
-nav_msgs::msg::OccupancyGrid Map::get_map_msg(void)
+void Map::get_map_msg(nav_msgs::msg::OccupancyGrid & output)
 {
-    nav_msgs::msg::OccupancyGrid msg;
-    msg.header.frame_id = frame_id_;
-    msg.info.height = height_;
-    msg.info.origin.position.x = ox_;
-    msg.info.origin.position.y = oy_;
-    msg.info.resolution = resolution_;
-    msg.info.width = width_;
-    cvt_2d_to_1d(msg);
-    return msg;
+    output.header.frame_id = frame_id_;
+    output.info.height = height_;
+    output.info.origin.position.x = ox_;
+    output.info.origin.position.y = oy_;
+    output.info.resolution = resolution_;
+    output.info.width = width_;
+    cvt_2d_to_1d(output);
 }
 
 void Map::cvt_2d_to_1d(nav_msgs::msg::OccupancyGrid & msg)

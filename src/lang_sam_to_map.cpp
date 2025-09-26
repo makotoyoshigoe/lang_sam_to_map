@@ -24,7 +24,6 @@ LangSamToMap::LangSamToMap(void)
     init_param();
     init_client();
     init_pubsub();
-	init_map();
     std::srand(static_cast<unsigned int>(std::time(nullptr)));
 }
 
@@ -49,17 +48,20 @@ void LangSamToMap::declare_param(void)
 
 void LangSamToMap::init_param(void)
 {
+    odom_frame_id_ = this->get_parameter("odom_frame_id").as_string();
+    base_frame_id_ = this->get_parameter("base_frame_id").as_string();
     node_freq_ = this->get_parameter("node_freq").as_int();
     time_interval_ = this->get_parameter("interval.time").as_double();
     distance_interval_ = this->get_parameter("interval.distance").as_int();
     publish_pointcloud_ = this->get_parameter("pointcloud.publish").as_bool();
-    vg_leaf_size_ = this->get_parameter("pointcloud.voxel_grid.leaf_size").as_double();
-    min_valid_th_ = this->get_parameter("valid_threshold.min").as_double();
-    max_valid_th_ = this->get_parameter("valid_threshold.max").as_double();
-    odom_frame_id_ = this->get_parameter("odom_frame_id").as_string();
-    base_frame_id_ = this->get_parameter("base_frame_id").as_string();
-    map_resolution_ = this->get_parameter("map.resolution").as_double();
-    rgbd_pc_converter_.reset(new RGBDPointcloudConverter(vg_leaf_size_, min_valid_th_, max_valid_th_));
+    float vg_leaf_size = this->get_parameter("pointcloud.voxel_grid.leaf_size").as_double();
+    float min_valid_th = this->get_parameter("valid_threshold.min").as_double();
+    float max_valid_th = this->get_parameter("valid_threshold.max").as_double();
+    float map_resolution = this->get_parameter("map.resolution").as_double();
+    float map_width = max_valid_th / map_resolution;
+	float map_height = max_valid_th / map_resolution;
+    rgbd_pc_converter_.reset(new RGBDPointcloudConverter(vg_leaf_size, max_valid_th, min_valid_th));
+    lsa_map_generator_.reset(new LSAMapGenerator(odom_frame_id_, map_resolution, map_width, map_height, max_valid_th, min_valid_th));
 }
 
 void LangSamToMap::init_pubsub(void)
@@ -105,18 +107,6 @@ void LangSamToMap::init_tf(void)
     init_tf_ = true;
 }
 
-void LangSamToMap::init_map(void)
-{
-	//lang_sam_map_.header.frame_id = odom_frame_id_;
-	//lang_sam_map_.info.resolution = map_resolution_;
-	map_width_ = max_valid_th_ / map_resolution_;
-	map_height_ = max_valid_th_ / map_resolution_;
-	//lang_sam_map_.info.width = map_width_;
-	//lang_sam_map_.info.height = map_height_;
-	//lang_sam_map_.info.origin.position.z = 0.;
-	//lang_sam_map_.data.resize(map_width_*map_height_);
-}
-
 void LangSamToMap::cb_message(
         sensor_msgs::msg::Image::ConstSharedPtr depth,
         sensor_msgs::msg::Image::ConstSharedPtr color,
@@ -128,9 +118,9 @@ void LangSamToMap::cb_message(
         publish_pointcloud();
     }
     if(!processing_){
-        color_ = color;
-        depth_ = depth;
-        camera_info_ = camera_info;
+        color_msg_ = color;
+        depth_msg_ = depth;
+        camera_info_msg_ = camera_info;
         init_msg_receive_ = true;
     }
 }
@@ -186,17 +176,19 @@ bool LangSamToMap::get_pose_from_camera_to_odom(
     return true;
 }
 
-bool LangSamToMap::send_request(void)
+void LangSamToMap::send_request(void)
 {
     processing_ = true;
-    request_msg_->image = *color_;
+    request_msg_->image = *color_msg_;
+    double ox, oy;
+    if(!get_odom(ox, oy)) return;
+    lsa_map_generator_->set_origin(ox, oy);
     if(init_request_) RCLCPP_INFO(get_logger(), "Send Request to Server, %lf second since last request", get_diff_time());
     else RCLCPP_INFO(get_logger(), "Send request for the first time");
     init_request_ = true;
     auto future = lsa_client_->async_send_request(
         request_msg_, 
         std::bind(&LangSamToMap::handle_process, this, std::placeholders::_1));
-    return true;
 }
 
 bool LangSamToMap::get_odom(double &x, double &y)
@@ -231,54 +223,27 @@ void LangSamToMap::handle_process(
     }else{
         RCLCPP_INFO(get_logger(), "Recieve Responce, mask size: %ld", response_msg->masks.size());
         if(response_msg->masks.size() != 0){
-            auto lsa_map_generator = std::make_unique<LSAMapGenerator>(response_msg->masks, depth_, camera_info_, odom_frame_id_, map_resolution_, map_width_, map_height_);
-            double ox, oy;
-            if(!get_odom(ox, oy)) return;
-
-            lsa_map_generator->set_origin(ox - max_valid_th_ / 2, oy - max_valid_th_ / 2);
-
+            lsa_map_generator_->update_image_infos(response_msg->masks, depth_msg_, camera_info_msg_);
             // Get TF camera frame->odom
             tf2::Transform tf_camera_to_odom;
-            if(!get_pose_from_camera_to_odom(color_->header.frame_id, tf_camera_to_odom)) return;
+            if(!get_pose_from_camera_to_odom(color_msg_->header.frame_id, tf_camera_to_odom)) return;
 
-            lsa_map_generator->create_grid_map_from_contours(tf_camera_to_odom);
+            if(!lsa_map_generator_->create_grid_map_from_contours(tf_camera_to_odom)) return;
 
-            nav_msgs::msg::OccupancyGrid lang_sam_map = lsa_map_generator->get_map_msg();
+            nav_msgs::msg::OccupancyGrid lang_sam_map;
+            lsa_map_generator_->get_map_msg(lang_sam_map);
 
 			pub_lang_sam_map_->publish(lang_sam_map);
 
             // Create Visualize Masks, Contours, BBox and Publish it
-            cv::Mat vis_mask = lsa_map_generator->get_visalize_image(color_, response_msg->boxes);
-            publish_vis_mask(vis_mask);
+            sensor_msgs::msg::Image vis_msg;
+            if(lsa_map_generator_->get_visualize_msg(vis_msg, color_msg_, response_msg->boxes)){
+                pub_vis_mask_->publish(vis_msg);
+            }
         }
     }
     last_map_publish_t_ = this->get_clock()->now();
     processing_ = false;
-}
-
-void LangSamToMap::publish_vis_mask(cv::Mat & input_img)
-{
-    sensor_msgs::msg::Image msg;
-    bool cvt_vis = cv_to_msg(input_img, msg);
-    if(!cvt_vis) return;
-    pub_vis_mask_->publish(msg);
-}
-
-bool LangSamToMap::cv_to_msg(
-    cv::Mat & input_img, 
-    sensor_msgs::msg::Image & msg)
-{
-    try {
-        msg = *cv_bridge::CvImage(color_->header, "rgb8", input_img).toImageMsg();
-        msg.header.stamp = now();
-        return true;
-    } catch (cv_bridge::Exception& e) {
-        RCLCPP_WARN(get_logger(), "cv_bridge exception: %s", e.what());
-        return false;
-    } catch (cv::Exception& e) {
-        RCLCPP_WARN(get_logger(), "OpenCV exception: %s", e.what());
-        return false;
-    }
 }
 
 int LangSamToMap::get_node_freq(void){return node_freq_;}

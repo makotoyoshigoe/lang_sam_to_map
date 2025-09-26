@@ -6,9 +6,23 @@
 namespace lang_sam_to_map{
 MaskImages::MaskImages(const std::vector<sensor_msgs::msg::Image> masks_msg_vec) : Image()
 {
+    pre_process(masks_msg_vec);
+}
+
+MaskImages::MaskImages(void)
+{}
+
+void MaskImages::pre_process(const std::vector<sensor_msgs::msg::Image> masks_msg_vec)
+{
     msg_mask_to_binary(masks_msg_vec);
     add_weight_bin();
     bin_mask_to_rgb();
+    find_contours();
+}
+
+void MaskImages::set_mask(const std::vector<sensor_msgs::msg::Image> masks_msg_vec)
+{
+    pre_process(masks_msg_vec);
 }
 
 void MaskImages::msg_mask_to_binary(const std::vector<sensor_msgs::msg::Image> masks_msg_vec)
@@ -45,13 +59,13 @@ void MaskImages::bin_mask_to_rgb(void)
     });
 }
 
-void MaskImages::find_contours(std::vector<std::vector<cv::Point>> & contours)
+void MaskImages::find_contours(void)
 {
     std::vector<cv::Vec4i> hierarchy;
     cv::Mat gray, binary;
     cv::cvtColor(cv_rgb_mask_, gray, CV_RGB2GRAY);
     cv::threshold(gray, binary, 150, 255, cv::THRESH_BINARY);
-    cv::findContours(binary, contours, hierarchy, cv::RETR_LIST, cv::CHAIN_APPROX_NONE);
+    cv::findContours(binary, contours_, hierarchy, cv::RETR_LIST, cv::CHAIN_APPROX_NONE);
 }
 
 void MaskImages::get_bin_mask(cv::Mat & output)
@@ -59,22 +73,21 @@ void MaskImages::get_bin_mask(cv::Mat & output)
     output = cv_aw_bin_mask_.clone();
 }
 
-cv::Mat MaskImages::vis_mask_contours_bbox(
-    sensor_msgs::msg::Image::ConstSharedPtr base, 
-    std::vector<sensor_msgs::msg::RegionOfInterest> & boxes)
+void MaskImages::get_contours(std::vector<std::vector<cv::Point>> & output)
 {
-    cv::Mat cv_vis;
-    img_msg_to_cv(base, cv_vis);
-    cv::addWeighted(cv_vis, 1.0, cv_rgb_mask_, 0.5, 0.0, cv_vis);
-    for(auto &c: contours_) cv::drawContours(cv_vis, c, -1, cv::Scalar(255, 0, 0), 1);
-	for(auto &box: boxes){
-		// バウンディングボックスを描画
-		cv::rectangle(cv_vis, 
-            cv::Point(box.x_offset, box.y_offset), 
-            cv::Point(box.x_offset+box.width, box.y_offset+box.height), 
-            cv::Scalar(0, 0, 255), 1);
-	}
-    return cv_vis;
+    output = contours_;
+}
+
+void MaskImages::get_image_size(int & rows, int & cols)
+{
+    rows = cv_rgb_mask_.rows;
+    cols = cv_rgb_mask_.cols;
+}
+
+void MaskImages::draw_mask_contours_bbox(cv::Mat & base)
+{
+    cv::addWeighted(base, 1.0, cv_rgb_mask_, 0.5, 0.0, base);
+    cv::drawContours(base, contours_, -1, cv::Scalar(255, 0, 0), 1);
 }
 
 MaskImages::~MaskImages(){}
