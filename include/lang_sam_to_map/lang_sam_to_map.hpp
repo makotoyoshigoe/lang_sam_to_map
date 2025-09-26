@@ -38,19 +38,19 @@ public:
     void publish_pointcloud(void);
     bool get_pose_from_camera_to_base(
         std::string camera_frame_id,
-        tf2::Transform& tf);
+        tf2::Transform & tf);
     bool get_pose_from_camera_to_odom(
         std::string camera_frame_id,
-        tf2::Transform& tf);
-    bool get_odom(double &x, double &y);
+        tf2::Transform & tf);
+    bool get_odom(double & x, double & y);
     bool send_request(void);
     void handle_process(
         rclcpp::Client<ros2_lang_sam_msgs::srv::TextSegmentation>::SharedFuture future);
     void publish_vis_mask(
-        cv::Mat& input_img);
+        cv::Mat & input_img);
     bool cv_to_msg(
-        cv::Mat& input_img, 
-        sensor_msgs::msg::Image& msg);
+        cv::Mat & input_img, 
+        sensor_msgs::msg::Image & msg);
     int get_node_freq(void);
     bool flg_send_request(void);
     double get_diff_time(void);

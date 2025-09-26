@@ -139,8 +139,8 @@ void LangSamToMap::publish_pointcloud(void)
 {
     // RGB画像、深度画像->3次元色付き点群
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc(new pcl::PointCloud<pcl::PointXYZRGB>), down_sampled_pc(new pcl::PointCloud<pcl::PointXYZRGB>);
-    rgbd_pc_converter_->create_point_cloud(pc, max_valid_th_, min_valid_th_);
-    rgbd_pc_converter_->down_sampling(pc, down_sampled_pc, vg_leaf_size_);
+    rgbd_pc_converter_->create_point_cloud(pc);
+    rgbd_pc_converter_->down_sampling(pc, down_sampled_pc);
 
     // Publish Pointcloud
     sensor_msgs::msg::PointCloud2 output_msg = rgbd_pc_converter_->pcl_to_msg(down_sampled_pc);
@@ -265,8 +265,8 @@ void LangSamToMap::publish_vis_mask(cv::Mat & input_img)
 }
 
 bool LangSamToMap::cv_to_msg(
-    cv::Mat& input_img, 
-    sensor_msgs::msg::Image& msg)
+    cv::Mat & input_img, 
+    sensor_msgs::msg::Image & msg)
 {
     try {
         msg = *cv_bridge::CvImage(color_->header, "rgb8", input_img).toImageMsg();

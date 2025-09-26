@@ -35,8 +35,7 @@ void RGBDPointcloudConverter::update_images_info(
 }
 
 void RGBDPointcloudConverter::create_point_cloud(
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr & output, 
-    float max_depth_th, float min_depth_th)
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr & output)
 {
     // Reserve PointCloud Vector
     int rows, cols;
@@ -50,7 +49,7 @@ void RGBDPointcloudConverter::create_point_cloud(
         for (int u = 0; u < cols; ++u) {
             cv::Point3d xyz;
             bool cvt_res = rgbd_image_->uv_to_xyz(u, v, xyz);
-			if(!cvt_res || xyz.z > max_depth_th || xyz.z < min_depth_th) continue;
+			if(!cvt_res || xyz.z > max_depth_th_ || xyz.z < min_depth_th_) continue;
             cv::Vec3b color = rgbd_image_->get_pixel_color(u, v);
             pcl::PointXYZRGB p(
                 xyz.x, xyz.y, xyz.z, color[2], color[1], color[0]);
@@ -67,7 +66,7 @@ void RGBDPointcloudConverter::create_point_cloud(
 
 void RGBDPointcloudConverter::down_sampling(
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr input, 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr & output, float leaf_size)
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr & output)
 {
     voxel_grid_filter_->setInputCloud(input);
     voxel_grid_filter_->filter(*output);

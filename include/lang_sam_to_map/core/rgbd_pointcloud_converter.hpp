@@ -23,11 +23,10 @@ class RGBDPointcloudConverter{
         sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 
         sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info);
     void create_point_cloud(
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr & output, 
-        float max_depth_th, float min_depth_th);
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr & output);
     void down_sampling(
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr input, 
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr & output, float leaf_size);
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr & output);
     sensor_msgs::msg::PointCloud2 pcl_to_msg(
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr & cloud);
 
