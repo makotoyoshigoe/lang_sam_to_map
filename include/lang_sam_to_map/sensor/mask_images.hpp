@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "lang_sam_to_map/image.hpp"
+#include "lang_sam_to_map/sensor/image.hpp"
 #include <sensor_msgs/msg/region_of_interest.hpp>
 
 namespace lang_sam_to_map{

@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Makoto Yoshigoe myoshigo0127@gmail.com 
 // SPDX-License-Identifier: Apache-2.0
 
-#include "lang_sam_to_map/rgbd_pointcloud_converter.hpp"
+#include "lang_sam_to_map/core/rgbd_pointcloud_converter.hpp"
 #include <pcl/filters/voxel_grid.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 namespace lang_sam_to_map
 {
@@ -53,6 +54,14 @@ void RGBDPointcloudConverter::down_sampling(
     voxel_grid_filter->setLeafSize(leaf_size, leaf_size, leaf_size);
     voxel_grid_filter->setInputCloud(input);
     voxel_grid_filter->filter(*output);
+}
+
+sensor_msgs::msg::PointCloud2 RGBDPointcloudConverter::pcl_to_msg(
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr & cloud)
+{
+    sensor_msgs::msg::PointCloud2 output_msg;
+    pcl::toROSMsg(*cloud, output_msg);
+    return output_msg;
 }
 
 RGBDPointcloudConverter::~RGBDPointcloudConverter(){}

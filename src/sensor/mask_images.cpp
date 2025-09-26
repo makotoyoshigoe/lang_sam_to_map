@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Makoto Yoshigoe myoshigo0127@gmail.com 
 // SPDX-License-Identifier: Apache-2.0
 
-#include "lang_sam_to_map/mask_images.hpp"
+#include "lang_sam_to_map/sensor/mask_images.hpp"
 
 namespace lang_sam_to_map{
 MaskImages::MaskImages(const std::vector<sensor_msgs::msg::Image> masks_msg_vec) : Image()

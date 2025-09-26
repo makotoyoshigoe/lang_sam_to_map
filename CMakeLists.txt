@@ -22,14 +22,14 @@ find_package(nav_msgs REQUIRED)
 add_executable(lang_sam_to_map
     src/lang_sam_to_map_main.cpp
     src/lang_sam_to_map.cpp
-	src/image.cpp
-    src/rgb_image.cpp
-	src/depth_image.cpp
-    src/rgbd_image.cpp
-    src/rgbd_pointcloud_converter.cpp
-	src/lsa_map_generator.cpp
-	src/map.cpp
-    src/mask_images.cpp
+	src/core/lsa_map_generator.cpp
+    src/core/rgbd_pointcloud_converter.cpp
+	src/sensor/depth_image.cpp
+	src/sensor/image.cpp
+    src/sensor/mask_images.cpp
+    src/sensor/rgb_image.cpp
+    src/sensor/rgbd_image.cpp
+	src/map/map.cpp
 )
 
 ament_target_dependencies(lang_sam_to_map

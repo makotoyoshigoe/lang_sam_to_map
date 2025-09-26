@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Makoto Yoshigoe myoshigo0127@gmail.com 
 // SPDX-License-Identifier: Apache-2.0
 
-#include "lang_sam_to_map/depth_image.hpp"
+#include "lang_sam_to_map/sensor/depth_image.hpp"
 
 namespace lang_sam_to_map{
 DepthImage::DepthImage(

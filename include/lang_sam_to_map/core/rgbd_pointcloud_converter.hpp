@@ -3,7 +3,8 @@
 
 #pragma once
 
-#include "lang_sam_to_map/rgbd_image.hpp"
+#include <rclcpp/time.hpp>
+#include "lang_sam_to_map/sensor/rgbd_image.hpp"
 #include <pcl_ros/transforms.hpp>
 
 namespace lang_sam_to_map{
@@ -20,6 +21,8 @@ class RGBDPointcloudConverter{
     void down_sampling(
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr input, 
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr & output, float leaf_size);
+    sensor_msgs::msg::PointCloud2 pcl_to_msg(
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr & cloud);
 
     private:
     std::unique_ptr<RGBDImage> rgbd_image_;

@@ -3,7 +3,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 
-#include "lang_sam_to_map/lsa_map_generator.hpp"
+#include "lang_sam_to_map/core/lsa_map_generator.hpp"
 
 
 namespace lang_sam_to_map

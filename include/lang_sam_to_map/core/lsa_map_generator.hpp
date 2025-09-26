@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "lang_sam_to_map/map.hpp"
-#include "lang_sam_to_map/depth_image.hpp"
-#include "lang_sam_to_map/mask_images.hpp"
+#include "lang_sam_to_map/map/map.hpp"
+#include "lang_sam_to_map/sensor/depth_image.hpp"
+#include "lang_sam_to_map/sensor/mask_images.hpp"
 #include <pcl_ros/transforms.hpp>
 
 namespace lang_sam_to_map{

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // #include <rclcpp/rclcpp.hpp>
-#include "lang_sam_to_map/rgbd_image.hpp"
+#include "lang_sam_to_map/sensor/rgbd_image.hpp"
 
 namespace lang_sam_to_map{
 

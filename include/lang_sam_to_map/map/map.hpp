@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include <rclcpp/time.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 
 namespace lang_sam_to_map{

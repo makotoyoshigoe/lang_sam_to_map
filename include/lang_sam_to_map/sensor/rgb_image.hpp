@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "lang_sam_to_map/image.hpp"
+#include "lang_sam_to_map/sensor/image.hpp"
 
 namespace lang_sam_to_map{
 class RGBImage : public Image

@@ -3,9 +3,8 @@
 
 #pragma once
 
-#include "lang_sam_to_map/rgb_image.hpp"
-#include "lang_sam_to_map/depth_image.hpp"
-//#include <image_geometry/pinhole_camera_model.h>
+#include "lang_sam_to_map/sensor/rgb_image.hpp"
+#include "lang_sam_to_map/sensor/depth_image.hpp"
 
 namespace lang_sam_to_map{
 class RGBDImage : public lang_sam_to_map::RGBImage, public lang_sam_to_map::DepthImage

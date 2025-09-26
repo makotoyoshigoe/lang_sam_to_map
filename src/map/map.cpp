@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <rclcpp/rclcpp.hpp>
-#include "lang_sam_to_map/map.hpp"
+#include "lang_sam_to_map/map/map.hpp"
 
 namespace lang_sam_to_map{
 
