@@ -6,19 +6,12 @@
 #include "lang_sam_to_map/core/rgbd_pointcloud_converter.hpp"
 #include "lang_sam_to_map/core/lsa_map_generator.hpp"
 
-#include <sensor_msgs/msg/camera_info.hpp>
-#include <sensor_msgs/msg/point_cloud2.hpp>
-#include <sensor_msgs/msg/image.hpp>
-#include <nav_msgs/msg/occupancy_grid.hpp>
-#include <opencv2/opencv.hpp>
-
 #include <ros2_lang_sam_msgs/srv/text_segmentation.hpp>
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/time_synchronizer.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
-
 
 namespace lang_sam_to_map{
 class LangSamToMap : public rclcpp::Node{
