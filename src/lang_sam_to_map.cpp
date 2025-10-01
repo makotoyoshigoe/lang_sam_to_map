@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "lang_sam_to_map/lang_sam_to_map.hpp"
+#include "lang_sam_to_map/core/rgbd_pointcloud_converter.hpp"
+#include "lang_sam_to_map/core/lsa_map_generator.hpp"
 
 #include <cstdlib>
 #include <ctime>
@@ -20,10 +22,8 @@ LangSamToMap::LangSamToMap(void)
 {
     declare_param();
     init_param();
-    init_vg_filter();
     init_client();
     init_pubsub();
-	init_map();
     std::srand(static_cast<unsigned int>(std::time(nullptr)));
 }
 
@@ -31,9 +31,9 @@ LangSamToMap::~LangSamToMap(){}
 
 void LangSamToMap::declare_param(void)
 {
-    this->declare_parameter("lsa.text_prompt", "side_walk");
-    this->declare_parameter("lsa.box_threshold", 0.4);
-    this->declare_parameter("lsa.text_threshold", 0.5);
+    this->declare_parameter("lsa.text_prompt", "side walk");
+    this->declare_parameter("lsa.box_threshold", 0.3);
+    this->declare_parameter("lsa.text_threshold", 0.25);
     this->declare_parameter("node_freq", 20);
     this->declare_parameter("interval.time", 5.0);
     this->declare_parameter("interval.distance", 5);
@@ -48,28 +48,24 @@ void LangSamToMap::declare_param(void)
 
 void LangSamToMap::init_param(void)
 {
+    odom_frame_id_ = this->get_parameter("odom_frame_id").as_string();
+    base_frame_id_ = this->get_parameter("base_frame_id").as_string();
     node_freq_ = this->get_parameter("node_freq").as_int();
     time_interval_ = this->get_parameter("interval.time").as_double();
     distance_interval_ = this->get_parameter("interval.distance").as_int();
     publish_pointcloud_ = this->get_parameter("pointcloud.publish").as_bool();
-    min_valid_th_ = this->get_parameter("valid_threshold.min").as_double();
-    max_valid_th_ = this->get_parameter("valid_threshold.max").as_double();
-    odom_frame_id_ = this->get_parameter("odom_frame_id").as_string();
-    base_frame_id_ = this->get_parameter("base_frame_id").as_string();
-    map_resolution_ = this->get_parameter("map.resolution").as_double();
-}
-
-void LangSamToMap::init_vg_filter(void)
-{
-    double leaf_size = this->get_parameter("pointcloud.voxel_grid.leaf_size").as_double();
-    voxel_grid_filter_.reset(new pcl::VoxelGrid<pcl::PointXYZRGB>());
-    voxel_grid_filter_->setLeafSize(leaf_size, leaf_size, leaf_size);
+    float vg_leaf_size = this->get_parameter("pointcloud.voxel_grid.leaf_size").as_double();
+    float min_valid_th = this->get_parameter("valid_threshold.min").as_double();
+    float max_valid_th = this->get_parameter("valid_threshold.max").as_double();
+    float map_resolution = this->get_parameter("map.resolution").as_double();
+    float map_width = max_valid_th / map_resolution;
+	float map_height = max_valid_th / map_resolution;
+    rgbd_pc_converter_.reset(new RGBDPointcloudConverter(vg_leaf_size, max_valid_th, min_valid_th));
+    lsa_map_generator_.reset(new LSAMapGenerator(odom_frame_id_, map_resolution, map_width, map_height, max_valid_th, min_valid_th));
 }
 
 void LangSamToMap::init_pubsub(void)
 {
-    sub_odom_ = create_subscription<nav_msgs::msg::Odometry>(
-        "odom", 10, std::bind(&LangSamToMap::cb_odom, this, std::placeholders::_1));
     pub_color_pc2_ = create_publisher<sensor_msgs::msg::PointCloud2>("color_cloud", rclcpp::QoS(10));
     pub_vis_mask_ = create_publisher<sensor_msgs::msg::Image>("visualized_mask", rclcpp::QoS(10));
 	pub_lang_sam_map_ = create_publisher<nav_msgs::msg::OccupancyGrid>("lang_sam_map", rclcpp::QoS(10));
@@ -111,152 +107,35 @@ void LangSamToMap::init_tf(void)
     init_tf_ = true;
 }
 
-void LangSamToMap::init_map(void)
-{
-	lang_sam_map_.header.frame_id = odom_frame_id_;
-	// lang_sam_map_.header.frame_id = base_frame_id_;
-	lang_sam_map_.info.resolution = map_resolution_;
-	map_width_ = max_valid_th_ / map_resolution_;
-	map_height_ = max_valid_th_ / map_resolution_;
-	lang_sam_map_.info.width = map_width_;
-	lang_sam_map_.info.height = map_height_;
-	lang_sam_map_.info.origin.position.z = 0.;
-	lang_sam_map_.data.resize(map_width_*map_height_);
-}
-
-void LangSamToMap::cb_odom(
-    nav_msgs::msg::Odometry::ConstSharedPtr msg)
-{
-    double t = tf2::getYaw(msg->pose.pose.orientation);
-    lang_sam_map_.info.origin.position.x = msg->pose.pose.position.x - max_valid_th_ / 2;
-    lang_sam_map_.info.origin.position.y = msg->pose.pose.position.y - max_valid_th_ / 2;
-    // lang_sam_map_.info.origin.orientation = msg->pose.pose.orientation;
-    // lang_sam_map_.info.origin.orientation.x = -msg->pose.pose.orientation.x;
-    // lang_sam_map_.info.origin.orientation.y = -msg->pose.pose.orientation.y;
-    // lang_sam_map_.info.origin.orientation.z = -msg->pose.pose.orientation.z;
-    // lang_sam_map_.info.origin.orientation.w = -msg->pose.pose.orientation.w;
-    // lang_sam_map_.info.origin.position.x = 0. - min_valid_th_;
-    // lang_sam_map_.info.origin.position.y = -max_valid_th_ / 2;
-}
-
 void LangSamToMap::cb_message(
         sensor_msgs::msg::Image::ConstSharedPtr depth,
         sensor_msgs::msg::Image::ConstSharedPtr color,
         sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info)
 {
     if(!init_tf_) init_tf();
-    if(publish_pointcloud_){
-        publish_pointcloud(color, depth, camera_info);
+    if(publish_pointcloud_ && color != nullptr && depth != nullptr){
+        rgbd_pc_converter_->update_images_info(color, depth, camera_info);
+        publish_pointcloud();
     }
     if(!processing_){
-        color_ = color;
-        depth_ = depth;
-        camera_info_ = camera_info;
+        color_msg_ = color;
+        depth_msg_ = depth;
+        camera_info_msg_ = camera_info;
         init_msg_receive_ = true;
     }
 }
 
-void LangSamToMap::publish_pointcloud(
-        sensor_msgs::msg::Image::ConstSharedPtr color_msg,
-        sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 
-        sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info)
+void LangSamToMap::publish_pointcloud(void)
 {
-    if(color_msg == nullptr || depth_msg == nullptr) return;
-
-    // ROS->CV
-    cv::Mat cv_color, cv_depth;
-    bool cvt_color = img_msg_to_cv(color_msg, cv_color);
-    bool cvt_depth = img_msg_to_cv(depth_msg, cv_depth);
-    if(!cvt_color || !cvt_depth) return;
-    cv::cvtColor(cv_color, cv_color, CV_BGR2RGB);
-
-    // color, depth -> pointcloud
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointcloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-    create_pointcloud(cv_color, cv_depth, camera_info, pointcloud);
-
-    // Down Sampling
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr sampled_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-    voxel_grid_filter_->setInputCloud(pointcloud);
-    voxel_grid_filter_->filter(*sampled_cloud);
-
-    // Get TF from Base to Camera
-    // tf2::Transform tf;
-    // bool get_tf = get_pose_from_camera_to_base(color_msg->header.frame_id, tf);
-    // if (!get_tf) return;
-
-    // Transform Pointcloud
-    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr output_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-    // pcl_ros::transformPointCloud(*sampled_cloud, *output_cloud, tf);
+    // RGB画像、深度画像->3次元色付き点群
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr pc(new pcl::PointCloud<pcl::PointXYZRGB>), down_sampled_pc(new pcl::PointCloud<pcl::PointXYZRGB>);
+    rgbd_pc_converter_->create_point_cloud(pc);
+    rgbd_pc_converter_->down_sampling(pc, down_sampled_pc);
 
     // Publish Pointcloud
-    sensor_msgs::msg::PointCloud2 output_msg;
-    pcl::toROSMsg(*sampled_cloud, output_msg);
-    output_msg.header.frame_id = color_msg->header.frame_id;
+    sensor_msgs::msg::PointCloud2 output_msg = rgbd_pc_converter_->pcl_to_msg(down_sampled_pc);
     output_msg.header.stamp = now();
     pub_color_pc2_->publish(output_msg);
-}
-
-bool LangSamToMap::img_msg_to_cv(
-    sensor_msgs::msg::Image::ConstSharedPtr img_msg,
-    cv::Mat& cv_image)
-{
-    try {
-        cv_image = cv_bridge::toCvShare(img_msg)->image.clone();
-        return true;
-    } catch (cv_bridge::Exception& e) {
-        RCLCPP_WARN(get_logger(), "cv_bridge exception: %s", e.what());
-        return false;
-    } catch (cv::Exception& e) {
-        RCLCPP_WARN(get_logger(), "OpenCV exception: %s", e.what());
-        return false;
-    }
-}
-
-void LangSamToMap::create_pointcloud(
-        cv::Mat& cv_color,
-        cv::Mat& cv_depth, 
-        sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info, 
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pointcloud)
-{
-    // Reserve PointCloud Vector
-    size_t data_s = cv_color.rows * cv_color.cols;
-    pointcloud->points.reserve(data_s);
-
-    // Create Camera Model
-    image_geometry::PinholeCameraModel cam_model;
-    cam_model.fromCameraInfo(camera_info);
-
-    // Create PointCloud
-    int rows = cv_color.rows, cols = cv_color.cols;
-    for (int v = 0; v < rows; ++v){
-        for (int u = 0; u < cols; ++u) {
-            cv::Point3d xyz;
-            bool cvt_res = uv_to_xyz(cam_model, cv_depth, u, v, xyz);
-			if(!cvt_res) continue;
-            cv::Vec3b color = cv_color.at<cv::Vec3b>(v, u);
-            pcl::PointXYZRGB p(
-                xyz.x, xyz.y, xyz.z, color[2], color[1], color[0]);
-            pointcloud->points.emplace_back(p);
-        }
-    }
-
-    // Set PointCloud Infomation
-    pointcloud->width = pointcloud->points.size();
-	pointcloud->height = 1;
-	pointcloud->is_dense = false;
-}
-
-bool LangSamToMap::uv_to_xyz(
-    image_geometry::PinholeCameraModel& cam_model,
-	cv::Mat& cv_depth, 
-    int u, int v, cv::Point3d& xyz)
-{
-    float z = static_cast<float>(cv_depth.at<uint16_t>(v, u)) * 0.001f;
-    if(std::isnan(z) || z < min_valid_th_ || z > max_valid_th_){
-        return false;
-	}
-    xyz = cam_model.projectPixelTo3dRay(cv::Point2d(u, v)) * z;
-    return true;
 }
 
 bool LangSamToMap::get_pose_from_camera_to_base(
@@ -297,17 +176,41 @@ bool LangSamToMap::get_pose_from_camera_to_odom(
     return true;
 }
 
-bool LangSamToMap::send_request(void)
+void LangSamToMap::send_request(void)
 {
     processing_ = true;
-    request_msg_->image = *color_;
+    request_msg_->image = *color_msg_;
+    double ox, oy;
+    if(!get_odom(ox, oy)) return;
+    lsa_map_generator_->set_origin(ox, oy);
     if(init_request_) RCLCPP_INFO(get_logger(), "Send Request to Server, %lf second since last request", get_diff_time());
     else RCLCPP_INFO(get_logger(), "Send request for the first time");
     init_request_ = true;
     auto future = lsa_client_->async_send_request(
         request_msg_, 
         std::bind(&LangSamToMap::handle_process, this, std::placeholders::_1));
-    return true;
+}
+
+bool LangSamToMap::get_odom(double &x, double &y)
+{
+    geometry_msgs::msg::PoseStamped ident;
+	ident.header.frame_id = base_frame_id_;
+	ident.header.stamp = rclcpp::Time(0);
+	tf2::toMsg(tf2::Transform::getIdentity(), ident.pose);
+
+	geometry_msgs::msg::PoseStamped odom_pose;
+	try {
+		this->tf_buffer_->transform(ident, odom_pose, odom_frame_id_);
+	} catch (tf2::TransformException & e) {
+		RCLCPP_WARN(
+		  get_logger(), "Failed to compute odom pose, skipping scan (%s)", e.what());
+		return false;
+	}
+	x = odom_pose.pose.position.x;
+	y = odom_pose.pose.position.y;
+	// t = tf2::getYaw(odom_pose.pose.orientation);
+
+	return true;
 }
 
 void LangSamToMap::handle_process(
@@ -320,184 +223,27 @@ void LangSamToMap::handle_process(
     }else{
         RCLCPP_INFO(get_logger(), "Recieve Responce, mask size: %ld", response_msg->masks.size());
         if(response_msg->masks.size() != 0){
-            // ROS Message Vector to CV Vector
-            std::vector<cv::Mat> cv_bin_masks = msg_mask_to_binary(response_msg->masks);
+            lsa_map_generator_->update_image_infos(response_msg->masks, depth_msg_, camera_info_msg_);
+            // Get TF camera frame->odom
+            tf2::Transform tf_camera_to_odom;
+            if(!get_pose_from_camera_to_odom(color_msg_->header.frame_id, tf_camera_to_odom)) return;
 
-            // Binary Mask to RGB Mask
-            std::vector<cv::Mat> cv_rgb_masks = bin_mask_to_rgb(cv_bin_masks);
+            if(!lsa_map_generator_->create_grid_map_from_contours(tf_camera_to_odom)) return;
 
-            // Find Contours
-            std::vector<std::vector<std::vector<cv::Point>>> contours = find_each_mask_contours(cv_rgb_masks);
+            nav_msgs::msg::OccupancyGrid lang_sam_map;
+            lsa_map_generator_->get_map_msg(lang_sam_map);
 
-            // Create Map and Publish it
-			// 0F: num of mask, 1F: num of contour, 2F: num of contour 2D points, 2F factors: vector of contour 2D point
-            // RCLCPP_INFO(get_logger(), "0F: %ld, 1F: %ld, 2F: %ld", contours.size(), contours[0].size(), contours[0][0].size());
+			pub_lang_sam_map_->publish(lang_sam_map);
 
-			// Transform contours 2D points to occupied grid map
-			bool create_map = create_grid_map_from_contours(contours);
-			if(create_map) pub_lang_sam_map_->publish(lang_sam_map_);
-
-            // Create Visualize Masks and Publish it
-            cv::Mat vis_mask = visualize_mask_contours(cv_rgb_masks, contours);
-            publish_vis_mask(vis_mask);
+            // Create Visualize Masks, Contours, BBox and Publish it
+            sensor_msgs::msg::Image vis_msg;
+            if(lsa_map_generator_->get_visualize_msg(vis_msg, color_msg_, response_msg->boxes)){
+                pub_vis_mask_->publish(vis_msg);
+            }
         }
     }
     last_map_publish_t_ = this->get_clock()->now();
     processing_ = false;
-}
-
-std::vector<cv::Mat> LangSamToMap::msg_mask_to_binary(
-    const std::vector<sensor_msgs::msg::Image>& masks)
-{
-    size_t masks_s = masks.size();
-    std::vector<cv::Mat> cv_vec(masks_s);
-    std::shared_ptr<sensor_msgs::msg::Image> mask_ptr;
-    for(size_t i=0; i<masks_s; ++i){
-        mask_ptr.reset(new sensor_msgs::msg::Image(masks[i]));
-        img_msg_to_cv(mask_ptr, cv_vec[i]);
-    }
-    return cv_vec;
-}
-
-std::vector<cv::Mat> LangSamToMap::bin_mask_to_rgb(
-    const std::vector<cv::Mat>& bin_masks)
-{
-    size_t masks_s = bin_masks.size();
-    std::vector<cv::Mat> rgb_masks(masks_s);
-    cv::Vec3b color(255, 255, 255);
-    for(size_t i=0; i<masks_s; ++i){
-        rgb_masks[i] = cv::Mat::zeros(bin_masks[i].rows, bin_masks[i].cols, CV_8UC3);
-        bin_masks[i].forEach<uchar>([&](uchar &pixel, const int position[]) -> void {
-            if (pixel > 0) {
-                rgb_masks[i].at<cv::Vec3b>(position[0], position[1]) = color;
-            }
-        });
-    }
-    return rgb_masks;
-}
-
-std::vector<std::vector<std::vector<cv::Point>>> LangSamToMap::find_each_mask_contours(
-    const std::vector<cv::Mat>& cv_rgb_masks)
-{
-    size_t mask_s = cv_rgb_masks.size();
-    std::vector<std::vector<std::vector<cv::Point>>> contours(mask_s);
-    std::vector<cv::Vec4i> hierarchy;
-    for(size_t i=0; i<mask_s; ++i){
-        cv::Mat gray, binary;
-        cv::cvtColor(cv_rgb_masks[i], gray, CV_RGB2GRAY);
-        cv::threshold(gray, binary, 150, 255, cv::THRESH_BINARY);
-        cv::findContours(binary, contours[i], hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
-    }
-    return contours;
-}
-
-bool LangSamToMap::create_grid_map_from_contours(
-	std::vector<std::vector<std::vector<cv::Point>>>& contours)
-{
-    // Reset Map
-    std::fill(lang_sam_map_.data.begin(), lang_sam_map_.data.end(), 0);
-
-    // Create Camera Model
-    image_geometry::PinholeCameraModel cam_model;
-    cam_model.fromCameraInfo(camera_info_);
-
-    // ROS->CV(depth)
-    cv::Mat cv_depth;
-    bool cvt_depth = img_msg_to_cv(depth_, cv_depth);
-	if(!cvt_depth) return false;
-
-    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> vec_pc;
-	RCLCPP_INFO(get_logger(), "Started to create map");
-
-	// contours points and depth -> pcl
-	for(size_t i=0; i<contours.size(); ++i){
-		for(size_t j=0; j<contours[i].size(); ++j){
-            pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud(new pcl::PointCloud<pcl::PointXYZ>);
-            pointcloud->points.reserve(contours[i][j].size());
-			for(auto &p: contours[i][j]){
-				cv::Point3d xyz;
-                bool cvt_res = uv_to_xyz(cam_model, cv_depth, p.x, p.y, xyz);
-			    if(!cvt_res) continue;
-                pcl::PointXYZ p_xyz(xyz.x, xyz.y, xyz.z);
-                pointcloud->points.emplace_back(p_xyz);
-			}
-            vec_pc.emplace_back(pointcloud);
-		}
-	}
-	RCLCPP_INFO(get_logger(), "Completed to create pointcloud");
-	
-	// Get TF camera frame->odom
-    tf2::Transform tf;
-    bool get_tf = get_pose_from_camera_to_odom(color_->header.frame_id, tf);
-    if(!get_tf) return false;
-
-    // Transform coordinate camera frame->odom
-    for(auto &pc: vec_pc){
-        pcl_ros::transformPointCloud(*pc, *pc, tf);
-    }
-
-    // Point xy -> Grid xy
-	// z->x, x->-y
-	pcl::PointCloud<pcl::PointXYZ>::iterator pt;
-	for(auto &pc: vec_pc){
- 		for (pt=pc->points.begin(); pt < pc->points.end(); pt++){
-			int index = xy_to_index((*pt).x, (*pt).y);
-			if(index == -1) continue;
-			lang_sam_map_.data[index] = 100;
-		}
-	}
-	RCLCPP_INFO(get_logger(), "Completed to create map");
-    double t = tf2::getYaw(lang_sam_map_.info.origin.orientation);
-    RCLCPP_INFO(get_logger(), "Map Origin: x: %lf, y: %lf, t: %lf", 
-        lang_sam_map_.info.origin.position.x, lang_sam_map_.info.origin.position.y, t);
-	return true;
-}
-
-int LangSamToMap::xy_to_index(double x, double y)
-{
-    int mx = static_cast<int>((x-lang_sam_map_.info.origin.position.x)/map_resolution_);
-    int my = static_cast<int>((y-lang_sam_map_.info.origin.position.y)/map_resolution_);
-    if(mx < 0 || mx >= map_width_ || my < 0 || my >= map_height_) return -1;
-    return my * map_width_ + mx;
-}
-
-cv::Mat LangSamToMap::visualize_mask_contours(
-        const std::vector<cv::Mat>& cv_rgb_masks, 
-        const std::vector<std::vector<std::vector<cv::Point>>>& contours)
-{
-    cv::Mat cv_color;
-    img_msg_to_cv(color_, cv_color);
-    size_t mask_s = cv_rgb_masks.size();
-    for(size_t i=0; i<mask_s; ++i){
-        cv::addWeighted(cv_color, 1.0, cv_rgb_masks[i], 0.5, 0.0, cv_color);
-        cv::drawContours(cv_color, contours[i], -1, cv::Scalar(255, 0, 0), 1);
-    }
-    return cv_color;
-}
-
-void LangSamToMap::publish_vis_mask(cv::Mat& input_img)
-{
-    sensor_msgs::msg::Image msg;
-    bool cvt_vis = cv_to_msg(input_img, msg);
-    if(!cvt_vis) return;
-    pub_vis_mask_->publish(msg);
-}
-
-bool LangSamToMap::cv_to_msg(
-    cv::Mat& input_img, 
-    sensor_msgs::msg::Image& msg)
-{
-    try {
-        msg = *cv_bridge::CvImage(color_->header, "rgb8", input_img).toImageMsg();
-        msg.header.stamp = now();
-        return true;
-    } catch (cv_bridge::Exception& e) {
-        RCLCPP_WARN(get_logger(), "cv_bridge exception: %s", e.what());
-        return false;
-    } catch (cv::Exception& e) {
-        RCLCPP_WARN(get_logger(), "OpenCV exception: %s", e.what());
-        return false;
-    }
 }
 
 int LangSamToMap::get_node_freq(void){return node_freq_;}
