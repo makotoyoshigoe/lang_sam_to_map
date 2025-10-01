@@ -31,7 +31,7 @@ void RGBDPointcloudConverter::update_images_info(
     rgbd_image_->set_color_image_from_msg(color_msg);
     rgbd_image_->set_depth_image_from_msg(depth_msg);
     rgbd_image_->set_camera_model_from_msg(camera_info);
-    rgbd_camera_frame_id_ = color_msg->header.frame_id;
+	rgb_camera_frame_id_ = color_msg->header.frame_id;
 }
 
 void RGBDPointcloudConverter::create_point_cloud(
@@ -41,8 +41,6 @@ void RGBDPointcloudConverter::create_point_cloud(
     int rows, cols;
     rgbd_image_->get_image_size(rows, cols);
     output->points.reserve(rows * cols);
-    
-    // RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Before Create Pointcloud");
 
     // Create PointCloud
     for (int v = 0; v < rows; ++v){
@@ -56,12 +54,11 @@ void RGBDPointcloudConverter::create_point_cloud(
             output->points.emplace_back(p);
         }
     }
-    // RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Before Set Cloud Info");
+	
     // Set PointCloud Infomation
     output->width = output->points.size();
 	output->height = 1;
 	output->is_dense = false;
-    // RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "After Set Cloud Info");
 }
 
 void RGBDPointcloudConverter::down_sampling(
@@ -77,7 +74,7 @@ sensor_msgs::msg::PointCloud2 RGBDPointcloudConverter::pcl_to_msg(
 {
     sensor_msgs::msg::PointCloud2 output_msg;
     pcl::toROSMsg(*cloud, output_msg);
-    output_msg.header.frame_id = rgbd_camera_frame_id_;
+    output_msg.header.frame_id = rgb_camera_frame_id_;
     return output_msg;
 }
 

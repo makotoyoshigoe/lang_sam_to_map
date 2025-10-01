@@ -31,7 +31,7 @@ class RGBDPointcloudConverter{
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr & cloud);
 
     private:
-    std::string rgbd_camera_frame_id_;
+    std::string rgb_camera_frame_id_;
     std::unique_ptr<RGBDImage> rgbd_image_;
     float max_depth_th_, min_depth_th_;
     pcl::VoxelGrid<pcl::PointXYZRGB>::Ptr voxel_grid_filter_;
