@@ -24,11 +24,11 @@ LSAMapGenerator::LSAMapGenerator(
 
 LSAMapGenerator::LSAMapGenerator(
     std::string frame_id, float resolution, int width, int height, 
-    float max_valid_th, float min_valid_th)
+    float max_valid_th, float min_valid_th, float noise_contour_th)
 : Map(frame_id, resolution, width, height), 
   max_valid_th_(max_valid_th), min_valid_th_(min_valid_th)
 {
-    mask_images_.reset(new MaskImages());
+    mask_images_.reset(new MaskImages(noise_contour_th));
     depth_image_.reset(new DepthImage());
 }
 
@@ -94,8 +94,7 @@ void LSAMapGenerator::contours_to_3d_point(
             mask_images_->get_image_size(rows, cols);
             if(p.y > rows - 10) continue;
             cv::Point3d xyz;
-            bool cvt_res = depth_image_->uv_to_xyz(p.x, p.y, xyz);
-            if(!cvt_res) continue;
+            if(!depth_image_->uv_to_xyz(p.x, p.y, xyz)) continue;
             pcl::PointXYZ p_xyz(xyz.x, xyz.y, xyz.z);
             pointcloud->points.emplace_back(p_xyz);
             
@@ -150,6 +149,7 @@ void LSAMapGenerator::bresenham(int x_e, int y_e)
 }
 
 bool LSAMapGenerator::get_visualize_msg(
+    bool raw, 
     sensor_msgs::msg::Image & output, 
     sensor_msgs::msg::Image::ConstSharedPtr base, 
     std::vector<sensor_msgs::msg::RegionOfInterest> & boxes)
@@ -157,7 +157,7 @@ bool LSAMapGenerator::get_visualize_msg(
     cv::Mat cv_vis;
     Image image;
     image.img_msg_to_cv(base, cv_vis);
-    mask_images_->draw_mask_contours_bbox(cv_vis);
+    mask_images_->draw_mask_contours_bbox(cv_vis, raw);
 	for(auto &box: boxes){
 		// バウンディングボックスを描画
 		cv::rectangle(cv_vis, 

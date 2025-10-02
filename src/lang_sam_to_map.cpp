@@ -44,6 +44,7 @@ void LangSamToMap::declare_param(void)
     this->declare_parameter("map.resolution", 0.1);
     this->declare_parameter("odom_frame_id", "odom");
     this->declare_parameter("base_frame_id", "base_footprint");
+    this->declare_parameter("noise_contour_threshold", 10.0);
 }
 
 void LangSamToMap::init_param(void)
@@ -58,15 +59,19 @@ void LangSamToMap::init_param(void)
     float min_valid_th = this->get_parameter("valid_threshold.min").as_double();
     float max_valid_th = this->get_parameter("valid_threshold.max").as_double();
     float map_resolution = this->get_parameter("map.resolution").as_double();
+
+    float noise_contour_th = this->get_parameter("noise_contour_threshold").as_double();
     float map_width = max_valid_th / map_resolution;
 	float map_height = max_valid_th / map_resolution;
     rgbd_pc_converter_.reset(new RGBDPointcloudConverter(vg_leaf_size, max_valid_th, min_valid_th));
-    lsa_map_generator_.reset(new LSAMapGenerator(odom_frame_id_, map_resolution, map_width, map_height, max_valid_th, min_valid_th));
+    lsa_map_generator_.reset(new LSAMapGenerator(
+        odom_frame_id_, map_resolution, map_width, map_height, max_valid_th, min_valid_th, noise_contour_th));
 }
 
 void LangSamToMap::init_pubsub(void)
 {
     pub_color_pc2_ = create_publisher<sensor_msgs::msg::PointCloud2>("color_cloud", rclcpp::QoS(10));
+    pub_vis_raw_mask_ = create_publisher<sensor_msgs::msg::Image>("visualized_raw_mask", rclcpp::QoS(10));
     pub_vis_mask_ = create_publisher<sensor_msgs::msg::Image>("visualized_mask", rclcpp::QoS(10));
 	pub_lang_sam_map_ = create_publisher<nav_msgs::msg::OccupancyGrid>("lang_sam_map", rclcpp::QoS(10));
     sub_color_.subscribe(this, "/camera/camera/color/image_raw");
@@ -236,9 +241,14 @@ void LangSamToMap::handle_process(
 			pub_lang_sam_map_->publish(lang_sam_map);
 
             // Create Visualize Masks, Contours, BBox and Publish it
-            sensor_msgs::msg::Image vis_msg;
-            if(lsa_map_generator_->get_visualize_msg(vis_msg, color_msg_, response_msg->boxes)){
-                pub_vis_mask_->publish(vis_msg);
+            sensor_msgs::msg::Image vis_raw_mask_msg, vis_mask_msg;
+            if(lsa_map_generator_->get_visualize_msg(
+                true, vis_raw_mask_msg, color_msg_, response_msg->boxes)){
+                pub_vis_raw_mask_->publish(vis_raw_mask_msg);
+            }
+            if(lsa_map_generator_->get_visualize_msg(
+                false, vis_mask_msg, color_msg_, response_msg->boxes)){
+                pub_vis_mask_->publish(vis_mask_msg);
             }
         }
     }

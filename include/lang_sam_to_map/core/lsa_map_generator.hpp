@@ -19,7 +19,7 @@ class LSAMapGenerator : public lang_sam_to_map::Map{
         float max_valid_th, float min_valid_th);
     LSAMapGenerator(
         std::string frame_id, float resolution, int width, int height, 
-        float max_valid_th, float min_valid_th);
+        float max_valid_th, float min_valid_th, float noise_contour_th);
     ~LSAMapGenerator();
     void set_origin(float ox, float oy);
     void update_image_infos(
@@ -34,6 +34,7 @@ class LSAMapGenerator : public lang_sam_to_map::Map{
         const std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> & occupied_pc_vec);
     void bresenham(int x_e, int y_e);
     bool get_visualize_msg(
+        bool raw, 
         sensor_msgs::msg::Image & output, 
         sensor_msgs::msg::Image::ConstSharedPtr base, 
         std::vector<sensor_msgs::msg::RegionOfInterest> & boxes);
