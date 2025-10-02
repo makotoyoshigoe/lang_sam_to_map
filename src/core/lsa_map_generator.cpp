@@ -149,6 +149,7 @@ void LSAMapGenerator::bresenham(int x_e, int y_e)
 }
 
 bool LSAMapGenerator::get_visualize_msg(
+    bool raw, 
     sensor_msgs::msg::Image & output, 
     sensor_msgs::msg::Image::ConstSharedPtr base, 
     std::vector<sensor_msgs::msg::RegionOfInterest> & boxes)
@@ -156,7 +157,7 @@ bool LSAMapGenerator::get_visualize_msg(
     cv::Mat cv_vis;
     Image image;
     image.img_msg_to_cv(base, cv_vis);
-    mask_images_->draw_mask_contours_bbox(cv_vis);
+    mask_images_->draw_mask_contours_bbox(cv_vis, raw);
 	for(auto &box: boxes){
 		// バウンディングボックスを描画
 		cv::rectangle(cv_vis, 

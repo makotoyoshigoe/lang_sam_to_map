@@ -44,6 +44,7 @@ public:
 
 private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_color_pc2_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_vis_raw_mask_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_vis_mask_;
     rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr pub_lang_sam_map_;
     message_filters::Subscriber<sensor_msgs::msg::Image> sub_depth_;

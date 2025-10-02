@@ -56,9 +56,10 @@ void MaskImages::bin_mask_to_rgb(void)
     cv_raw_rgb_mask_ = cv::Mat::zeros(cv_aw_bin_mask_.rows, cv_aw_bin_mask_.cols, CV_8UC3);
     cv_aw_bin_mask_.forEach<uchar>([&](uchar &pixel, const int position[]) -> void {
         if (pixel > 0) {
-            cv_rgb_mask_.at<cv::Vec3b>(position[0], position[1]) = color;
+            cv_raw_rgb_mask_.at<cv::Vec3b>(position[0], position[1]) = color;
         }
     });
+    // cv_inv_rgb_mask_ = ~(cv_raw_rgb_mask_.clone());
 }
 
 void MaskImages::find_contours_process(
@@ -74,22 +75,21 @@ void MaskImages::find_contours_process(
 
 void MaskImages::generate_contours_point(void)
 {
-    find_contours_process(~cv_rgb_mask_.clone(), inv_contours_); // 反転RGBマスク：輪郭抽出
-    
-    std::vector<std::vector<cv::Point>> noise_contours;
-    remove_contours_noise(noise_contours); // 反転RGBマスク輪郭：輪郭面積が閾値以上のものは削除
-    
+    find_contours_process(cv_raw_rgb_mask_, raw_contours_); // 生のRGBマスク：輪郭抽出
+    find_contours_process(~cv_raw_rgb_mask_, inv_contours_); // 反転RGBマスク：輪郭抽出
+    remove_contours_noise(); // 反転RGBマスク輪郭：輪郭面積が閾値以上のものは削除
     find_contours_process(cv_rgb_mask_, contours_); // cv_rgb_mask_：輪郭抽出
 }
 
-void MaskImages::remove_contours_noise(
-    std::vector<std::vector<cv::Point>> & noise_contours)
+void MaskImages::remove_contours_noise(void)
 {
+    std::vector<std::vector<cv::Point>> noise_contours;
 	for(auto & c: inv_contours_){
         if(noise_contour_th_ > cv::contourArea(c)){
             noise_contours.emplace_back(c);
         }
     }
+    cv_rgb_mask_ = cv_raw_rgb_mask_.clone();
     cv::drawContours(cv_rgb_mask_, noise_contours, -1, cv::Scalar(255, 255, 255), -1);
     RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Complete Remove Contours Noise");
 }
@@ -110,11 +110,16 @@ void MaskImages::get_image_size(int & rows, int & cols)
     cols = cv_rgb_mask_.cols;
 }
 
-void MaskImages::draw_mask_contours_bbox(cv::Mat & base)
+void MaskImages::draw_mask_contours_bbox(cv::Mat & base, bool raw)
 {
-    cv::addWeighted(base, 1.0, cv_rgb_mask_, 0.5, 0.0, base);
-    cv::drawContours(base, contours_, -1, cv::Scalar(255, 0, 0), 1);
-	cv::drawContours(base, inv_contours_, -1, cv::Scalar(0, 0, 0), 1);
+    if(raw){
+        cv::addWeighted(base, 1.0, cv_raw_rgb_mask_, 0.5, 0.0, base);
+        cv::drawContours(base, raw_contours_, -1, cv::Scalar(255, 0, 0), 1);
+    }else{
+        cv::addWeighted(base, 1.0, cv_rgb_mask_, 0.5, 0.0, base);
+        cv::drawContours(base, contours_, -1, cv::Scalar(255, 0, 0), 1);
+    }
+	// cv::drawContours(base, inv_contours_, -1, cv::Scalar(0, 0, 0), 1);
 }
 
 MaskImages::~MaskImages(){}

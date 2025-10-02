@@ -34,6 +34,7 @@ class LSAMapGenerator : public lang_sam_to_map::Map{
         const std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> & occupied_pc_vec);
     void bresenham(int x_e, int y_e);
     bool get_visualize_msg(
+        bool raw, 
         sensor_msgs::msg::Image & output, 
         sensor_msgs::msg::Image::ConstSharedPtr base, 
         std::vector<sensor_msgs::msg::RegionOfInterest> & boxes);

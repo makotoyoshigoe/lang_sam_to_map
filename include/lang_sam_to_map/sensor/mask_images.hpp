@@ -22,19 +22,18 @@ class MaskImages : public Image
     void find_contours_process(
         cv::Mat base, std::vector<std::vector<cv::Point>> & output);
     void generate_contours_point(void);
-	void remove_contours_noise(
-        std::vector<std::vector<cv::Point>> & noise_contours);
+	void remove_contours_noise(void);
     void get_bin_mask(cv::Mat & output);
     void get_contours(std::vector<std::vector<cv::Point>> & output);
     void get_image_size(int & rows, int & cols);
-    void draw_mask_contours_bbox(cv::Mat & base);
+    void draw_mask_contours_bbox(cv::Mat & base, bool raw);
 
     private:
     float noise_contour_th_;
     std::vector<cv::Mat> cv_bin_mask_vec_;
     cv::Mat cv_aw_bin_mask_;
-    cv::Mat cv_raw_rgb_mask_, cv_rgb_mask_; //, cv_inv_rgb_mask_;
-    std::vector<std::vector<cv::Point>> contours_, inv_contours_;
+    cv::Mat cv_raw_rgb_mask_, cv_inv_rgb_mask_, cv_rgb_mask_;
+    std::vector<std::vector<cv::Point>> raw_contours_, inv_contours_, contours_;
 };
 
 }
