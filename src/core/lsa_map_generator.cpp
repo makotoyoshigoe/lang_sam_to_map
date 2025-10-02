@@ -150,7 +150,6 @@ void LSAMapGenerator::bresenham(int x_e, int y_e)
 
 bool LSAMapGenerator::get_visualize_msg(
     bool raw, 
-    sensor_msgs::msg::Image & output, 
     sensor_msgs::msg::Image::ConstSharedPtr base, 
     std::vector<sensor_msgs::msg::RegionOfInterest> & boxes)
 {

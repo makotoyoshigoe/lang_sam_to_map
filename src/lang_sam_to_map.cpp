@@ -61,7 +61,7 @@ void LangSamToMap::init_param(void)
     float map_resolution = this->get_parameter("map.resolution").as_double();
     float noise_contour_th = this->get_parameter("noise_contour_threshold").as_double();
     float map_width = max_valid_th / map_resolution;
-	float map_height = max_valid_th / map_resolution;
+	  float map_height = max_valid_th / map_resolution;
     rgbd_pc_converter_.reset(new RGBDPointcloudConverter(vg_leaf_size, max_valid_th, min_valid_th));
     lsa_map_generator_.reset(new LSAMapGenerator(
         odom_frame_id_, map_resolution, map_width, map_height, max_valid_th, min_valid_th, noise_contour_th));
@@ -237,7 +237,7 @@ void LangSamToMap::handle_process(
             nav_msgs::msg::OccupancyGrid lang_sam_map;
             lsa_map_generator_->get_map_msg(lang_sam_map);
 
-			pub_lang_sam_map_->publish(lang_sam_map);
+			      pub_lang_sam_map_->publish(lang_sam_map);
 
             // Create Visualize Masks, Contours, BBox and Publish it
             sensor_msgs::msg::Image vis_raw_mask_msg, vis_mask_msg;
