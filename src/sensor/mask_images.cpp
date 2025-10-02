@@ -114,10 +114,10 @@ void MaskImages::draw_mask_contours_bbox(cv::Mat & base, bool raw)
 {
     if(raw){
         cv::addWeighted(base, 1.0, cv_raw_rgb_mask_, 0.5, 0.0, base);
-        cv::drawContours(base, raw_contours_, -1, cv::Scalar(255, 0, 0), 1);
+        cv::drawContours(base, raw_contours_, -1, cv::Scalar(255, 0, 0), 5);
     }else{
         cv::addWeighted(base, 1.0, cv_rgb_mask_, 0.5, 0.0, base);
-        cv::drawContours(base, contours_, -1, cv::Scalar(255, 0, 0), 1);
+        cv::drawContours(base, contours_, -1, cv::Scalar(255, 0, 0), 5);
     }
 }
 

@@ -143,16 +143,16 @@ void LangSamToMap::publish_pointcloud(void)
     pub_color_pc2_->publish(output_msg);
 }
 
-bool LangSamToMap::get_pose_from_camera_to_base(
-    std::string camera_frame_id,
-    tf2::Transform& tf)
+bool LangSamToMap::get_pose_from_a_to_b(
+    std::string a, std::string b,
+    tf2::Transform & tf)
 {
     rclcpp::Time time = rclcpp::Time(0);
     geometry_msgs::msg::TransformStamped tf_tmp;
 
     try {
         tf_tmp = tf_buffer_->lookupTransform(
-            base_frame_id_, camera_frame_id, time, rclcpp::Duration::from_seconds(4.0));
+            a, b, time, rclcpp::Duration::from_seconds(4.0));
         tf2::fromMsg(tf_tmp.transform, tf);
     } catch (tf2::TransformException& e) {
         RCLCPP_WARN(
@@ -229,11 +229,15 @@ void LangSamToMap::handle_process(
         RCLCPP_INFO(get_logger(), "Recieve Responce, mask size: %ld", response_msg->masks.size());
         if(response_msg->masks.size() != 0){
             lsa_map_generator_->update_image_infos(response_msg->masks, depth_msg_, camera_info_msg_);
-            // Get TF camera frame->odom
-            tf2::Transform tf_camera_to_odom;
-            if(!get_pose_from_camera_to_odom(color_msg_->header.frame_id, tf_camera_to_odom)) return;
+            // Get TF camera frame -> base
+            tf2::Transform tf_camera_to_base;
+            if(!get_pose_from_a_to_b(color_msg_->header.frame_id, base_frame_id_, tf_camera_to_base)) return;
 
-            if(!lsa_map_generator_->create_grid_map_from_contours(tf_camera_to_odom)) return;
+            // Get TF camera frame -> odom
+            tf2::Transform tf_base_to_odom;
+            if(!get_pose_from_a_to_b(base_frame_id_, odom_frame_id_, tf_base_to_odom)) return;
+
+            if(!lsa_map_generator_->create_grid_map_from_contours(tf_camera_to_base, tf_base_to_odom)) return;
 
             nav_msgs::msg::OccupancyGrid lang_sam_map;
             lsa_map_generator_->get_map_msg(lang_sam_map);

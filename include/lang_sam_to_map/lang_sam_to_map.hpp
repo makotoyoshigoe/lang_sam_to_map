@@ -28,8 +28,8 @@ public:
         sensor_msgs::msg::Image::ConstSharedPtr color,
         sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info);
     void publish_pointcloud(void);
-    bool get_pose_from_camera_to_base(
-        std::string camera_frame_id,
+    bool get_pose_from_a_to_b(
+        std::string a, std::string b,
         tf2::Transform & tf);
     bool get_pose_from_camera_to_odom(
         std::string camera_frame_id,
