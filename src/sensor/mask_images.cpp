@@ -10,8 +10,8 @@ MaskImages::MaskImages(const std::vector<sensor_msgs::msg::Image> masks_msg_vec)
     pre_process(masks_msg_vec);
 }
 
-MaskImages::MaskImages(float noise_contour_th)
-: noise_contour_th_(noise_contour_th)
+MaskImages::MaskImages(float noise_contour_area_th)
+: noise_contour_area_th_(noise_contour_area_th)
 {}
 
 void MaskImages::pre_process(const std::vector<sensor_msgs::msg::Image> masks_msg_vec)
@@ -85,7 +85,7 @@ void MaskImages::remove_contours_noise(void)
 {
     std::vector<std::vector<cv::Point>> noise_contours;
 	for(auto & c: inv_contours_){
-        if(noise_contour_th_ > cv::contourArea(c)){
+        if(noise_contour_area_th_ > cv::contourArea(c)){
             noise_contours.emplace_back(c);
         }
     }

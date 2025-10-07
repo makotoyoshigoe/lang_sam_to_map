@@ -20,11 +20,12 @@ class LSAMapGenerator : public lang_sam_to_map::Map{
         std::vector<sensor_msgs::msg::Image> & masks_msg_vec, 
         sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 
         sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info_msg, 
-        std::string frame_id, float resolution, int width, int height, 
+        std::string frame_id, float resolution, 
         float max_valid_th, float min_valid_th);
     LSAMapGenerator(
-        std::string frame_id, float resolution, int width, int height, 
-        float max_valid_th, float min_valid_th, float noise_contour_th);
+        std::string frame_id, float resolution, 
+        float max_valid_th, float min_valid_th, 
+        float noise_contour_area_th, float connect_grid_th);
     ~LSAMapGenerator();
     void set_origin(float ox, float oy);
     void update_image_infos(
@@ -32,8 +33,7 @@ class LSAMapGenerator : public lang_sam_to_map::Map{
         sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 
         sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info_msg);
     bool create_grid_map_from_contours(
-        const tf2::Transform & tf_camera_to_base, 
-        const tf2::Transform & tf_base_to_odom);
+        const tf2::Transform & tf_camera_to_odom);
     void contours_to_3d_point(void);
     void connect_occupied_grid(void);
     void plot_occupied_and_raycast(void);
@@ -50,7 +50,7 @@ class LSAMapGenerator : public lang_sam_to_map::Map{
     std::unique_ptr<MaskImages> mask_images_;
     std::unique_ptr<DepthImage> depth_image_;
     std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> occupied_pc_vec_;
-    float max_valid_th_, min_valid_th_;
+    float max_valid_th_, min_valid_th_, connect_grid_th_;
     std::vector<Grid> occupied_grid_;
 };
 

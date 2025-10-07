@@ -44,7 +44,8 @@ void LangSamToMap::declare_param(void)
     this->declare_parameter("map.resolution", 0.1);
     this->declare_parameter("odom_frame_id", "odom");
     this->declare_parameter("base_frame_id", "base_footprint");
-    this->declare_parameter("noise_contour_threshold", 10.0);
+    this->declare_parameter("noise_contour_area_threshold", 10.0);
+    this->declare_parameter("connect_grid_threshold", 7.0);
 }
 
 void LangSamToMap::init_param(void)
@@ -59,13 +60,11 @@ void LangSamToMap::init_param(void)
     float min_valid_th = this->get_parameter("valid_threshold.min").as_double();
     float max_valid_th = this->get_parameter("valid_threshold.max").as_double();
     float map_resolution = this->get_parameter("map.resolution").as_double();
-
-    float noise_contour_th = this->get_parameter("noise_contour_threshold").as_double();
-    float map_width = max_valid_th / map_resolution;
-	float map_height = max_valid_th / map_resolution;
+    float noise_contour_area_th = this->get_parameter("noise_contour_area_threshold").as_double();
+    float connect_grid_th = this->get_parameter("connect_grid_threshold").as_double();
     rgbd_pc_converter_.reset(new RGBDPointcloudConverter(vg_leaf_size, max_valid_th, min_valid_th));
-    lsa_map_generator_.reset(new LSAMapGenerator(
-        odom_frame_id_, map_resolution, map_width, map_height, max_valid_th, min_valid_th, noise_contour_th));
+    lsa_map_generator_.reset(new LSAMapGenerator(odom_frame_id_, map_resolution,
+        max_valid_th, min_valid_th, noise_contour_area_th, connect_grid_th));
 }
 
 void LangSamToMap::init_pubsub(void)
@@ -152,7 +151,7 @@ bool LangSamToMap::get_pose_from_a_to_b(
 
     try {
         tf_tmp = tf_buffer_->lookupTransform(
-            a, b, time, rclcpp::Duration::from_seconds(4.0));
+            b, a, time, rclcpp::Duration::from_seconds(4.0));
         tf2::fromMsg(tf_tmp.transform, tf);
     } catch (tf2::TransformException& e) {
         RCLCPP_WARN(
@@ -229,15 +228,12 @@ void LangSamToMap::handle_process(
         RCLCPP_INFO(get_logger(), "Recieve Responce, mask size: %ld", response_msg->masks.size());
         if(response_msg->masks.size() != 0){
             lsa_map_generator_->update_image_infos(response_msg->masks, depth_msg_, camera_info_msg_);
-            // Get TF camera frame -> base
-            tf2::Transform tf_camera_to_base;
-            if(!get_pose_from_a_to_b(color_msg_->header.frame_id, base_frame_id_, tf_camera_to_base)) return;
 
-            // Get TF camera frame -> odom
-            tf2::Transform tf_base_to_odom;
-            if(!get_pose_from_a_to_b(base_frame_id_, odom_frame_id_, tf_base_to_odom)) return;
+            // Get TF base frame -> odom
+            tf2::Transform tf_camera_to_odom;
+            if(!get_pose_from_a_to_b(color_msg_->header.frame_id, odom_frame_id_, tf_camera_to_odom)) return;
 
-            if(!lsa_map_generator_->create_grid_map_from_contours(tf_camera_to_base, tf_base_to_odom)) return;
+            if(!lsa_map_generator_->create_grid_map_from_contours(tf_camera_to_odom)) return;
 
             nav_msgs::msg::OccupancyGrid lang_sam_map;
             lsa_map_generator_->get_map_msg(lang_sam_map);
