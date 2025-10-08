@@ -27,7 +27,7 @@ class LSAMapGenerator : public lang_sam_to_map::Map{
         float max_valid_th, float min_valid_th, 
         float noise_contour_area_th, float connect_grid_th);
     ~LSAMapGenerator();
-    void set_origin(float ox, float oy);
+    void set_origin(float ox, float oy, geometry_msgs::msg::Quaternion oq);
     void update_image_infos(
         std::vector<sensor_msgs::msg::Image> & masks_msg_vec, 
         sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 

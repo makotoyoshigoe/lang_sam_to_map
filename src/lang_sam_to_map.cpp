@@ -9,7 +9,7 @@
 #include <ctime>
 #include <tf2/convert.h>
 #include <tf2/utils.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+// #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <tf2_ros/create_timer_ros.h>
 
 #include <pcl_ros/transforms.hpp>
@@ -185,8 +185,9 @@ void LangSamToMap::send_request(void)
     processing_ = true;
     request_msg_->image = *color_msg_;
     double ox, oy;
-    if(!get_odom(ox, oy)) return;
-    lsa_map_generator_->set_origin(ox, oy);
+    geometry_msgs::msg::Quaternion oq;
+    if(!get_odom(ox, oy, oq)) return;
+    lsa_map_generator_->set_origin(ox, oy, oq);
     if(init_request_) RCLCPP_INFO(get_logger(), "Send Request to Server, %lf second since last request", get_diff_time());
     else RCLCPP_INFO(get_logger(), "Send request for the first time");
     init_request_ = true;
@@ -195,7 +196,7 @@ void LangSamToMap::send_request(void)
         std::bind(&LangSamToMap::handle_process, this, std::placeholders::_1));
 }
 
-bool LangSamToMap::get_odom(double &x, double &y)
+bool LangSamToMap::get_odom(double &x, double &y, geometry_msgs::msg::Quaternion & q)
 {
     geometry_msgs::msg::PoseStamped ident;
 	ident.header.frame_id = base_frame_id_;
@@ -212,8 +213,7 @@ bool LangSamToMap::get_odom(double &x, double &y)
 	}
 	x = odom_pose.pose.position.x;
 	y = odom_pose.pose.position.y;
-	// t = tf2::getYaw(odom_pose.pose.orientation);
-
+	q = odom_pose.pose.orientation;
 	return true;
 }
 

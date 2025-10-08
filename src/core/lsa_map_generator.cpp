@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <rclcpp/rclcpp.hpp>
+#include <tf2/utils.h>
+#include <tf2/convert.h>
 
 #include "lang_sam_to_map/core/lsa_map_generator.hpp"
 
@@ -33,10 +35,22 @@ LSAMapGenerator::LSAMapGenerator(
     depth_image_.reset(new DepthImage());
 }
 
-void LSAMapGenerator::set_origin(float ox, float oy)
+void LSAMapGenerator::set_origin(float ox, float oy, geometry_msgs::msg::Quaternion oq)
 {
-    ox_ = ox - max_valid_th_ / 2;
-    oy_ = oy - max_valid_th_ / 2;
+    // oq_ = oq;
+    tf2::Quaternion q;
+    q.setRPY(0, 0, 0);
+    ot_ = tf2::getYaw(oq);
+    oq_ = oq;
+    //oq_.x = q.getX();
+    //oq_.y = q.getY();
+    //oq_.z = q.getZ();
+    //oq_.w = q.getW();
+    float dx = max_valid_th_ / 2 * (cos(ot_) - sin(ot_));
+    float dy = max_valid_th_ / 2 * (sin(ot_) + cos(ot_));
+    ox_ = ox - dx;// - static_cast<float>(width_ / 2 * cos(ot_));
+    oy_ = oy - dy;// - static_cast<float>(height_ / 2 * sin(ot_));
+    RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "ox, oy, ot: %f, %f, %f, map_x, map_y, map_t: %f, %f, %f", ox, oy, tf2::getYaw(oq), ox_, oy_, ot_);
 }
 
 void LSAMapGenerator::update_image_infos(
