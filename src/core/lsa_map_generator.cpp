@@ -172,7 +172,7 @@ void LSAMapGenerator::plot_occupied_and_raycast(bool mode)
 void LSAMapGenerator::bresenham_fill(int x_e, int y_e)
 {
     int x0, y0;
-    xy_to_index(ox_, oy_+max_valid_th_ / 2, x0, y0);
+    xy_to_index(ox_ + map_offset_x_, oy_ + map_offset_y_, x0, y0);
     if(is_out_range(x0, y0)) return;
 
     int x1 = x_e;
