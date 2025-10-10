@@ -17,15 +17,10 @@ struct Grid{
 class LSAMapGenerator : public lang_sam_to_map::Map{
     public:
     LSAMapGenerator(
-        std::vector<sensor_msgs::msg::Image> & masks_msg_vec, 
-        sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 
-        sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info_msg, 
-        std::string frame_id, float resolution, 
-        float max_valid_th, float min_valid_th);
-    LSAMapGenerator(
         std::string frame_id, float resolution, 
         float max_valid_th, float min_valid_th, 
-        float noise_contour_area_th, float connect_grid_th);
+        float noise_contour_area_th, float connect_grid_th, 
+        float map_offset_x, float map_offset_y);
     ~LSAMapGenerator();
     void set_origin(float ox, float oy, geometry_msgs::msg::Quaternion oq);
     void update_image_infos(
@@ -33,7 +28,7 @@ class LSAMapGenerator : public lang_sam_to_map::Map{
         sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 
         sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info_msg);
     bool create_grid_map_from_contours(
-        const tf2::Transform & tf_camera_to_odom);
+        const tf2::Transform & tf_camera_to_base);
     void contours_to_3d_point(void);
     void connect_occupied_grid(void);
     void plot_occupied_and_raycast(bool mode);

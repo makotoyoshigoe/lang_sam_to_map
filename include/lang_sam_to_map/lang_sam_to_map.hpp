@@ -31,9 +31,6 @@ public:
     bool get_pose_from_a_to_b(
         std::string a, std::string b,
         tf2::Transform & tf);
-    bool get_pose_from_camera_to_odom(
-        std::string camera_frame_id,
-        tf2::Transform & tf);
     bool get_odom(double & x, double & y, geometry_msgs::msg::Quaternion & q);
     void send_request(void);
     void handle_process(

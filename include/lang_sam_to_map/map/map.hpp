@@ -10,7 +10,8 @@ namespace lang_sam_to_map{
 class Map
 {
     public:
-        Map(std::string frame_id, float resolution, int width, int height);
+        Map(std::string frame_id, float resolution, int width, int height, 
+            float map_offset_x, float map_offset_y);
         ~Map();
         float get_resolution(void);
         float get_one_side_size(void);
@@ -30,6 +31,7 @@ class Map
 		float resolution_;
 		int width_, height_;
 		float ox_, oy_, ot_;
+        float map_offset_x_, map_offset_y_;
         geometry_msgs::msg::Quaternion oq_;
 		std::vector<std::vector<int8_t>> data_;
 };

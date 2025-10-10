@@ -6,8 +6,9 @@
 
 namespace lang_sam_to_map{
 
-Map::Map(std::string frame_id, float resolution, int width, int height)
-: frame_id_(frame_id), resolution_(resolution), width_(width), height_(height)
+Map::Map(std::string frame_id, float resolution, int width, int height, float map_offset_x, float map_offset_y)
+: frame_id_(frame_id), resolution_(resolution), width_(width), height_(height), 
+  map_offset_x_(map_offset_x), map_offset_y_(map_offset_y)
 {
     reset_map();
 }
