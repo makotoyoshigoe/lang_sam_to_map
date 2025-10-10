@@ -36,7 +36,7 @@ class LSAMapGenerator : public lang_sam_to_map::Map{
         const tf2::Transform & tf_camera_to_odom);
     void contours_to_3d_point(void);
     void connect_occupied_grid(void);
-    void plot_occupied_and_raycast(void);
+    void plot_occupied_and_raycast(bool mode);
     void bresenham(int x_s, int y_s, int x_e, int y_e);
     void bresenham_fill(int x_e, int y_e);
     bool get_visualize_msg(

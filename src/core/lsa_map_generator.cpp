@@ -37,20 +37,20 @@ LSAMapGenerator::LSAMapGenerator(
 
 void LSAMapGenerator::set_origin(float ox, float oy, geometry_msgs::msg::Quaternion oq)
 {
-    // oq_ = oq;
-    tf2::Quaternion q;
-    q.setRPY(0, 0, 0);
     ot_ = tf2::getYaw(oq);
+    //ot_ = M_PI / 2;
     oq_ = oq;
+    //tf2::Quaternion q;
+    //q.setRPY(0, 0, ot_);
     //oq_.x = q.getX();
     //oq_.y = q.getY();
     //oq_.z = q.getZ();
     //oq_.w = q.getW();
     float dx = max_valid_th_ / 2 * (cos(ot_) - sin(ot_));
     float dy = max_valid_th_ / 2 * (sin(ot_) + cos(ot_));
-    ox_ = ox - dx;// - static_cast<float>(width_ / 2 * cos(ot_));
-    oy_ = oy - dy;// - static_cast<float>(height_ / 2 * sin(ot_));
-    RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "ox, oy, ot: %f, %f, %f, map_x, map_y, map_t: %f, %f, %f", ox, oy, tf2::getYaw(oq), ox_, oy_, ot_);
+    ox_ = ox - dx;
+    oy_ = oy - dy;
+    RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "ox, oy, ot: %f, %f, %f, map_x, map_y, map_t: %f, %f, %f", ox, oy, tf2::getYaw(oq_), ox_, oy_, ot_);
 }
 
 void LSAMapGenerator::update_image_infos(
@@ -85,16 +85,13 @@ bool LSAMapGenerator::create_grid_map_from_contours(
         RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Connect Occupied Grid");
 
         // Point xy -> Grid xy
-        plot_occupied_and_raycast();
+        plot_occupied_and_raycast(false);
 	    RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Completed to create map");
         return true;
     }catch(std::exception & e){
         RCLCPP_ERROR(rclcpp::get_logger("lang_sam_to_map"), "Exeption Error: %s", e.what());
         return false;
     }
-    // double t = tf2::getYaw(lang_sam_map_.info.origin.orientation);
-    // RCLCPP_INFO(get_logger(), "Map Origin: x: %lf, y: %lf, t: %lf", 
-    //     lang_sam_map_.info.origin.position.x, lang_sam_map_.info.origin.position.y, t);
 }
 
 void LSAMapGenerator::contours_to_3d_point(void)
@@ -115,7 +112,6 @@ void LSAMapGenerator::contours_to_3d_point(void)
             cv::Point3d xyz;
             if(!depth_image_->uv_to_xyz(p.x, p.y, xyz)) continue;
             pcl::PointXYZ p_xyz(xyz.x, xyz.y, std::min(xyz.z, (double)max_valid_th_));
-            // pcl::PointXYZ p_xyz(xyz.x, xyz.y, xyz.z);
             pointcloud->points.emplace_back(p_xyz);
 		}
         occupied_pc_vec_.emplace_back(pointcloud);
@@ -166,24 +162,27 @@ void LSAMapGenerator::bresenham(
     }
 }
 
-void LSAMapGenerator::plot_occupied_and_raycast(void)
+void LSAMapGenerator::plot_occupied_and_raycast(bool mode)
 {
-    for(auto & p: occupied_grid_){
-        bresenham_fill(p.x, p.y);
-        if(is_out_range(p.x, p.y)) continue;
-        data_[p.x][p.y] = 100;
+    if(mode){
+        for(auto & p: occupied_grid_){
+            bresenham_fill(p.x, p.y);
+            if(is_out_range(p.x, p.y)) continue;
+            data_[p.x][p.y] = 100;
+        }
+    }else{
+        pcl::PointCloud<pcl::PointXYZ>::iterator pt;
+        for(auto &pc: occupied_pc_vec_){
+            for (pt=pc->points.begin(); pt < pc->points.end(); pt++){
+                bresenham_fill(
+                    static_cast<int>(((*pt).x - ox_) / resolution_), 
+                    static_cast<int>(((*pt).y - oy_) / resolution_));
+                int ix, iy;
+                if(!xy_to_index((*pt).x, (*pt).y, ix, iy)) continue;
+                data_[ix][iy] = 100;
+            }
+        }
     }
-    // pcl::PointCloud<pcl::PointXYZ>::iterator pt;
-    // for(auto &pc: occupied_pc_vec_){
-    //     for (pt=pc->points.begin(); pt < pc->points.end(); pt++){
-    //         bresenham_fill(
-    //             static_cast<int>(((*pt).x - ox_) / resolution_), 
-    //             static_cast<int>(((*pt).y - oy_) / resolution_));
-    //         int ix, iy;
-    //         if(!xy_to_index((*pt).x, (*pt).y, ix, iy)) continue;
-    //         data_[ix][iy] = 100;
-    //     }
-    // }
 }
 
 void LSAMapGenerator::bresenham_fill(int x_e, int y_e)
