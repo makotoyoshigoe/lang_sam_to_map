@@ -52,6 +52,7 @@ void Map::get_map_msg(nav_msgs::msg::OccupancyGrid & output)
     output.info.height = height_;
     output.info.origin.position.x = ox_;
     output.info.origin.position.y = oy_;
+    tf2::convert(oq_, output.info.origin.orientation);
     output.info.resolution = resolution_;
     output.info.width = width_;
     cvt_2d_to_1d(output);

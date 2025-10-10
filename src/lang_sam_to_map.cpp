@@ -9,7 +9,7 @@
 #include <ctime>
 #include <tf2/convert.h>
 #include <tf2/utils.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+// #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <tf2_ros/create_timer_ros.h>
 
 #include <pcl_ros/transforms.hpp>
@@ -44,7 +44,8 @@ void LangSamToMap::declare_param(void)
     this->declare_parameter("map.resolution", 0.1);
     this->declare_parameter("odom_frame_id", "odom");
     this->declare_parameter("base_frame_id", "base_footprint");
-    this->declare_parameter("noise_contour_threshold", 10.0);
+    this->declare_parameter("noise_contour_area_threshold", 10.0);
+    this->declare_parameter("connect_grid_threshold", 7.0);
 }
 
 void LangSamToMap::init_param(void)
@@ -59,13 +60,11 @@ void LangSamToMap::init_param(void)
     float min_valid_th = this->get_parameter("valid_threshold.min").as_double();
     float max_valid_th = this->get_parameter("valid_threshold.max").as_double();
     float map_resolution = this->get_parameter("map.resolution").as_double();
-
-    float noise_contour_th = this->get_parameter("noise_contour_threshold").as_double();
-    float map_width = max_valid_th / map_resolution;
-	float map_height = max_valid_th / map_resolution;
+    float noise_contour_area_th = this->get_parameter("noise_contour_area_threshold").as_double();
+    float connect_grid_th = this->get_parameter("connect_grid_threshold").as_double();
     rgbd_pc_converter_.reset(new RGBDPointcloudConverter(vg_leaf_size, max_valid_th, min_valid_th));
-    lsa_map_generator_.reset(new LSAMapGenerator(
-        odom_frame_id_, map_resolution, map_width, map_height, max_valid_th, min_valid_th, noise_contour_th));
+    lsa_map_generator_.reset(new LSAMapGenerator(odom_frame_id_, map_resolution,
+        max_valid_th, min_valid_th, noise_contour_area_th, connect_grid_th));
 }
 
 void LangSamToMap::init_pubsub(void)
@@ -143,16 +142,16 @@ void LangSamToMap::publish_pointcloud(void)
     pub_color_pc2_->publish(output_msg);
 }
 
-bool LangSamToMap::get_pose_from_camera_to_base(
-    std::string camera_frame_id,
-    tf2::Transform& tf)
+bool LangSamToMap::get_pose_from_a_to_b(
+    std::string a, std::string b,
+    tf2::Transform & tf)
 {
     rclcpp::Time time = rclcpp::Time(0);
     geometry_msgs::msg::TransformStamped tf_tmp;
 
     try {
         tf_tmp = tf_buffer_->lookupTransform(
-            base_frame_id_, camera_frame_id, time, rclcpp::Duration::from_seconds(4.0));
+            b, a, time, rclcpp::Duration::from_seconds(4.0));
         tf2::fromMsg(tf_tmp.transform, tf);
     } catch (tf2::TransformException& e) {
         RCLCPP_WARN(
@@ -186,8 +185,9 @@ void LangSamToMap::send_request(void)
     processing_ = true;
     request_msg_->image = *color_msg_;
     double ox, oy;
-    if(!get_odom(ox, oy)) return;
-    lsa_map_generator_->set_origin(ox, oy);
+    geometry_msgs::msg::Quaternion oq;
+    if(!get_odom(ox, oy, oq)) return;
+    lsa_map_generator_->set_origin(ox, oy, oq);
     if(init_request_) RCLCPP_INFO(get_logger(), "Send Request to Server, %lf second since last request", get_diff_time());
     else RCLCPP_INFO(get_logger(), "Send request for the first time");
     init_request_ = true;
@@ -196,7 +196,7 @@ void LangSamToMap::send_request(void)
         std::bind(&LangSamToMap::handle_process, this, std::placeholders::_1));
 }
 
-bool LangSamToMap::get_odom(double &x, double &y)
+bool LangSamToMap::get_odom(double &x, double &y, geometry_msgs::msg::Quaternion & q)
 {
     geometry_msgs::msg::PoseStamped ident;
 	ident.header.frame_id = base_frame_id_;
@@ -213,8 +213,7 @@ bool LangSamToMap::get_odom(double &x, double &y)
 	}
 	x = odom_pose.pose.position.x;
 	y = odom_pose.pose.position.y;
-	// t = tf2::getYaw(odom_pose.pose.orientation);
-
+	q = odom_pose.pose.orientation;
 	return true;
 }
 
@@ -229,9 +228,10 @@ void LangSamToMap::handle_process(
         RCLCPP_INFO(get_logger(), "Recieve Responce, mask size: %ld", response_msg->masks.size());
         if(response_msg->masks.size() != 0){
             lsa_map_generator_->update_image_infos(response_msg->masks, depth_msg_, camera_info_msg_);
-            // Get TF camera frame->odom
+
+            // Get TF base frame -> odom
             tf2::Transform tf_camera_to_odom;
-            if(!get_pose_from_camera_to_odom(color_msg_->header.frame_id, tf_camera_to_odom)) return;
+            if(!get_pose_from_a_to_b(color_msg_->header.frame_id, odom_frame_id_, tf_camera_to_odom)) return;
 
             if(!lsa_map_generator_->create_grid_map_from_contours(tf_camera_to_odom)) return;
 

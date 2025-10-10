@@ -19,4 +19,5 @@ lang_sam_to_map:
       resolution: 0.1
     base_frame_id: "base_footprint"
     odom_frame_id: "odom"
-    noise_contour_threshold: 100.0
+    noise_contour_area_threshold: 1000.0
+    connect_grid_threshold: 1.0

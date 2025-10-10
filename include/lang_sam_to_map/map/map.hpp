@@ -4,6 +4,7 @@
 #pragma once
 
 #include <nav_msgs/msg/occupancy_grid.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 namespace lang_sam_to_map{
 class Map
@@ -28,7 +29,8 @@ class Map
 		std::string frame_id_;
 		float resolution_;
 		int width_, height_;
-		float ox_, oy_;
+		float ox_, oy_, ot_;
+        geometry_msgs::msg::Quaternion oq_;
 		std::vector<std::vector<int8_t>> data_;
 };
 
