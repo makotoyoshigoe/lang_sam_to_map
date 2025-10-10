@@ -41,6 +41,8 @@ void LangSamToMap::declare_param(void)
     this->declare_parameter("pointcloud.voxel_grid.leaf_size", 0.025);
     this->declare_parameter("valid_threshold.min", 0.3);
     this->declare_parameter("valid_threshold.max", 10.0);
+    this->declare_parameter("map.offset.x", 0.);
+    this->declare_parameter("map.offset.y", 0.);
     this->declare_parameter("map.resolution", 0.1);
     this->declare_parameter("odom_frame_id", "odom");
     this->declare_parameter("base_frame_id", "base_footprint");
@@ -59,12 +61,14 @@ void LangSamToMap::init_param(void)
     float vg_leaf_size = this->get_parameter("pointcloud.voxel_grid.leaf_size").as_double();
     float min_valid_th = this->get_parameter("valid_threshold.min").as_double();
     float max_valid_th = this->get_parameter("valid_threshold.max").as_double();
+    float map_offset_x = this->get_parameter("map.offset.x").as_double();
+    float map_offset_y = this->get_parameter("map.offset.y").as_double();
     float map_resolution = this->get_parameter("map.resolution").as_double();
     float noise_contour_area_th = this->get_parameter("noise_contour_area_threshold").as_double();
     float connect_grid_th = this->get_parameter("connect_grid_threshold").as_double();
     rgbd_pc_converter_.reset(new RGBDPointcloudConverter(vg_leaf_size, max_valid_th, min_valid_th));
     lsa_map_generator_.reset(new LSAMapGenerator(odom_frame_id_, map_resolution,
-        max_valid_th, min_valid_th, noise_contour_area_th, connect_grid_th));
+        max_valid_th, min_valid_th, noise_contour_area_th, connect_grid_th, map_offset_x, map_offset_y));
 }
 
 void LangSamToMap::init_pubsub(void)
@@ -112,9 +116,9 @@ void LangSamToMap::init_tf(void)
 }
 
 void LangSamToMap::cb_message(
-        sensor_msgs::msg::Image::ConstSharedPtr depth,
-        sensor_msgs::msg::Image::ConstSharedPtr color,
-        sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info)
+    sensor_msgs::msg::Image::ConstSharedPtr depth,
+    sensor_msgs::msg::Image::ConstSharedPtr color,
+    sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info)
 {
     if(!init_tf_) init_tf();
     if(publish_pointcloud_ && color != nullptr && depth != nullptr){
@@ -152,25 +156,6 @@ bool LangSamToMap::get_pose_from_a_to_b(
     try {
         tf_tmp = tf_buffer_->lookupTransform(
             b, a, time, rclcpp::Duration::from_seconds(4.0));
-        tf2::fromMsg(tf_tmp.transform, tf);
-    } catch (tf2::TransformException& e) {
-        RCLCPP_WARN(
-            this->get_logger(), "Failed to compute camera pose(%s)", e.what());
-        return false;
-    }
-    return true;
-}
-
-bool LangSamToMap::get_pose_from_camera_to_odom(
-    std::string camera_frame_id,
-    tf2::Transform& tf)
-{
-    rclcpp::Time time = rclcpp::Time(0);
-    geometry_msgs::msg::TransformStamped tf_tmp;
-
-    try {
-        tf_tmp = tf_buffer_->lookupTransform(
-            odom_frame_id_, camera_frame_id, time, rclcpp::Duration::from_seconds(4.0));
         tf2::fromMsg(tf_tmp.transform, tf);
     } catch (tf2::TransformException& e) {
         RCLCPP_WARN(
@@ -229,11 +214,11 @@ void LangSamToMap::handle_process(
         if(response_msg->masks.size() != 0){
             lsa_map_generator_->update_image_infos(response_msg->masks, depth_msg_, camera_info_msg_);
 
-            // Get TF base frame -> odom
-            tf2::Transform tf_camera_to_odom;
-            if(!get_pose_from_a_to_b(color_msg_->header.frame_id, odom_frame_id_, tf_camera_to_odom)) return;
+            // Get TF camera frame -> base 
+            tf2::Transform tf_camera_to_base;
+            if(!get_pose_from_a_to_b(color_msg_->header.frame_id, base_frame_id_, tf_camera_to_base)) return;
 
-            if(!lsa_map_generator_->create_grid_map_from_contours(tf_camera_to_odom)) return;
+            if(!lsa_map_generator_->create_grid_map_from_contours(tf_camera_to_base)) return;
 
             nav_msgs::msg::OccupancyGrid lang_sam_map;
             lsa_map_generator_->get_map_msg(lang_sam_map);

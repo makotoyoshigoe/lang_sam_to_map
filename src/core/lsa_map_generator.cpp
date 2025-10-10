@@ -10,25 +10,12 @@
 
 namespace lang_sam_to_map
 {
-
-LSAMapGenerator::LSAMapGenerator(
-    std::vector<sensor_msgs::msg::Image> & masks_msg_vec, 
-    sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 
-    sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info_msg, 
-    std::string frame_id, float resolution, 
-    float max_valid_th, float min_valid_th)
-: Map(frame_id, resolution, max_valid_th/resolution, max_valid_th/resolution), 
-  max_valid_th_(max_valid_th), min_valid_th_(min_valid_th)
-{
-    mask_images_.reset(new MaskImages(masks_msg_vec));
-    depth_image_.reset(new DepthImage(depth_msg, camera_info_msg));
-}
-
 LSAMapGenerator::LSAMapGenerator(
     std::string frame_id, float resolution, 
     float max_valid_th, float min_valid_th, 
-    float noise_contour_area_th, float connect_grid_th)
-: Map(frame_id, resolution, max_valid_th/resolution, max_valid_th/resolution), 
+    float noise_contour_area_th, float connect_grid_th, 
+    float map_offset_x, float map_offset_y)
+: Map(frame_id, resolution, max_valid_th/resolution, max_valid_th/resolution, map_offset_x, map_offset_y), 
   max_valid_th_(max_valid_th), min_valid_th_(min_valid_th), connect_grid_th_(connect_grid_th)
 {
     mask_images_.reset(new MaskImages(noise_contour_area_th));
@@ -38,19 +25,12 @@ LSAMapGenerator::LSAMapGenerator(
 void LSAMapGenerator::set_origin(float ox, float oy, geometry_msgs::msg::Quaternion oq)
 {
     ot_ = tf2::getYaw(oq);
-    //ot_ = M_PI / 2;
     oq_ = oq;
-    //tf2::Quaternion q;
-    //q.setRPY(0, 0, ot_);
-    //oq_.x = q.getX();
-    //oq_.y = q.getY();
-    //oq_.z = q.getZ();
-    //oq_.w = q.getW();
-    float dx = max_valid_th_ / 2 * (cos(ot_) - sin(ot_));
-    float dy = max_valid_th_ / 2 * (sin(ot_) + cos(ot_));
+    float dx = map_offset_x_ * cos(ot_) - map_offset_y_ * sin(ot_);
+    float dy = map_offset_x_ * sin(ot_) + map_offset_y_ * cos(ot_);
     ox_ = ox - dx;
     oy_ = oy - dy;
-    RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "ox, oy, ot: %f, %f, %f, map_x, map_y, map_t: %f, %f, %f", ox, oy, tf2::getYaw(oq_), ox_, oy_, ot_);
+    // RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "ox, oy, ot: %f, %f, %f, map_x, map_y, map_t: %f, %f, %f", ox, oy, tf2::getYaw(oq_), ox_, oy_, ot_);
 }
 
 void LSAMapGenerator::update_image_infos(
@@ -64,7 +44,7 @@ void LSAMapGenerator::update_image_infos(
 }
 
 bool LSAMapGenerator::create_grid_map_from_contours(
-    const tf2::Transform & tf_camera_to_odom)
+    const tf2::Transform & tf_camera_to_base)
 {
     // Reset Map
     reset_map();
@@ -76,7 +56,11 @@ bool LSAMapGenerator::create_grid_map_from_contours(
 
         // Transform coordinate camera frame->odom
         for(auto & pc: occupied_pc_vec_){
-            pcl_ros::transformPointCloud(*pc, *pc, tf_camera_to_odom);
+            pcl_ros::transformPointCloud(*pc, *pc, tf_camera_to_base);
+            for(auto & p: pc->points){
+                p.x += ox_ + map_offset_x_;
+                p.y += oy_ + map_offset_y_;
+            }
         }
         RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Transform Pointcloud");
 
@@ -85,7 +69,7 @@ bool LSAMapGenerator::create_grid_map_from_contours(
         RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Connect Occupied Grid");
 
         // Point xy -> Grid xy
-        plot_occupied_and_raycast(false);
+        plot_occupied_and_raycast(true);
 	    RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Completed to create map");
         return true;
     }catch(std::exception & e){
@@ -187,8 +171,8 @@ void LSAMapGenerator::plot_occupied_and_raycast(bool mode)
 
 void LSAMapGenerator::bresenham_fill(int x_e, int y_e)
 {
-    int x0 = static_cast<int>(width_ / 2);
-    int y0 = static_cast<int>(height_ / 2);
+    int x0, y0;
+    xy_to_index(ox_, oy_+max_valid_th_ / 2, x0, y0);
     if(is_out_range(x0, y0)) return;
 
     int x1 = x_e;
