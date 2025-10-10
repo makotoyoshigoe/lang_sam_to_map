@@ -226,11 +226,12 @@ void LangSamToMap::handle_process(
 			pub_lang_sam_map_->publish(lang_sam_map);
 
             // Create Visualize Masks, Contours, BBox and Publish it
-            sensor_msgs::msg::Image vis_raw_mask_msg, vis_mask_msg;
-            if(lsa_map_generator_->get_visualize_msg(
-                true, vis_raw_mask_msg, color_msg_, response_msg->boxes)){
-                pub_vis_raw_mask_->publish(vis_raw_mask_msg);
-            }
+            //sensor_msgs::msg::Image vis_raw_mask_msg, vis_mask_msg;
+            sensor_msgs::msg::Image vis_mask_msg;
+            // if(lsa_map_generator_->get_visualize_msg(
+            //     true, vis_raw_mask_msg, color_msg_, response_msg->boxes)){
+            //     pub_vis_raw_mask_->publish(vis_raw_mask_msg);
+            // }
             if(lsa_map_generator_->get_visualize_msg(
                 false, vis_mask_msg, color_msg_, response_msg->boxes)){
                 pub_vis_mask_->publish(vis_mask_msg);

@@ -1,5 +1,5 @@
-// SPDX-FileCopyrightText: 2025 Makoto Yoshigoe myoshigo0127@gmail.com 
-// SPDX-License-Identifier: Apache-2.0
+// SPd.x-FileCopyrightText: 2025 Makoto Yoshigoe myoshigo0127@gmail.com 
+// SPd.x-License-Identifier: Apache-2.0
 
 #include <rclcpp/rclcpp.hpp>
 #include <tf2/utils.h>
@@ -30,7 +30,6 @@ void LSAMapGenerator::set_origin(float ox, float oy, geometry_msgs::msg::Quatern
     float dy = map_offset_x_ * sin(ot_) + map_offset_y_ * cos(ot_);
     ox_ = ox - dx;
     oy_ = oy - dy;
-    // RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "ox, oy, ot: %f, %f, %f, map_x, map_y, map_t: %f, %f, %f", ox, oy, tf2::getYaw(oq_), ox_, oy_, ot_);
 }
 
 void LSAMapGenerator::update_image_infos(
@@ -88,7 +87,6 @@ void LSAMapGenerator::contours_to_3d_point(void)
     // contours points and depth -> pcl
 	for(size_t i=0; i<contours.size(); ++i){
         pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud(new pcl::PointCloud<pcl::PointXYZ>);
-        //pointcloud->points.reserve(contours[i].size());
         for(auto &p: contours[i]){
             int rows, cols;
             mask_images_->get_image_size(rows, cols);
@@ -108,8 +106,6 @@ void LSAMapGenerator::connect_occupied_grid(void)
     for(auto &pc: occupied_pc_vec_){
         if(pc->points.size() == 0) continue;
         for(size_t i=0; i<pc->points.size()-1; ++i){
-            // RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "x, y: %lf, %lf", pc->points[i].x, pc->points[i].y);
-            // RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "size: %d, index: %d", pc->points.size(), i);
             if(hypot(pc->points[i].x-pc->points[i+1].x, pc->points[i].y-pc->points[i+1].y) > connect_grid_th_) continue;
             bresenham(
                 static_cast<int>((pc->points[i].x - ox_) / resolution_), 
@@ -123,26 +119,18 @@ void LSAMapGenerator::connect_occupied_grid(void)
 void LSAMapGenerator::bresenham(
     int x_s, int y_s, int x_e, int y_e)
 {
-    int x0 = x_s;
-    int y0 = y_s;
-
-    int x1 = x_e;
-    int y1 = y_e;
-
-    int dx = std::abs(x1 - x0);
-    int dy = std::abs(y1 - y0);
-
-    int sx = (x0 < x1) ? 1 : -1;
-    int sy = (y0 < y1) ? 1 : -1;
+    Grid p0{x_s, y_s}, p1{x_e, y_e};
+    Grid d{std::abs(p1.x - p0.x), std::abs(p1.y - p0.y)};
+    Grid s{(p0.x < p1.x) ? 1 : -1, (p0.y < p1.y) ? 1 : -1};
     
-    int err = dx - dy;
+    int err = d.x - d.y;
 
     while (true) {
-        occupied_grid_.emplace_back(Grid{x0, y0});
-        if (x0 == x1 && y0 == y1) break;
+        occupied_grid_.emplace_back(Grid{p0.x, p0.y});
+        if (p0.x == p1.x && p0.y == p1.y) break;
         int e2 = 2 * err;
-        if (e2 > -dy) {err -= dy; x0 += sx;}
-        if (e2 <  dx) {err += dx; y0 += sy;}
+        if (e2 > -d.y) {err -= d.y; p0.x += s.x;}
+        if (e2 <  d.x) {err += d.x; p0.y += s.y;}
     }
 }
 
@@ -171,30 +159,24 @@ void LSAMapGenerator::plot_occupied_and_raycast(bool mode)
 
 void LSAMapGenerator::bresenham_fill(int x_e, int y_e)
 {
-    int x0, y0;
-    xy_to_index(ox_ + map_offset_x_, oy_ + map_offset_y_, x0, y0);
-    if(is_out_range(x0, y0)) return;
+    int x, y;
+    xy_to_index(ox_ + map_offset_x_, oy_ + map_offset_y_, x, y);
+    Grid p0{x, y}, p1{x_e, y_e};
+    Grid d{std::abs(p1.x - p0.x), std::abs(p1.y - p0.y)};
+    Grid s{(p0.x < p1.x) ? 1 : -1, (p0.y < p1.y) ? 1 : -1};
+    if(is_out_range(p0.x, p0.y)) return;
 
-    int x1 = x_e;
-    int y1 = y_e;
-
-    int dx = std::abs(x1 - x0);
-    int dy = std::abs(y1 - y0);
-
-    int sx = (x0 < x1) ? 1 : -1;
-    int sy = (y0 < y1) ? 1 : -1;
-
-    int err = dx - dy;
+    int err = d.x - d.y;
 
     while (true) {
-        if(is_out_range(x0, y0)) break;
-        if (x0 == x1 && y0 == y1) break;
+        if(is_out_range(p0.x, p0.y)) break;
+        if (p0.x == p1.x && p0.y == p1.y) break;
 
-        if(data_[x0][y0] != 100) data_[x0][y0] = 0;
+        if(data_[p0.x][p0.y] != 100) data_[p0.x][p0.y] = 0;
 
         int e2 = 2 * err;
-        if (e2 > -dy) {err -= dy; x0 += sx;}
-        if (e2 <  dx) {err += dx; y0 += sy;}
+        if (e2 > -d.y) {err -= d.y; p0.x += s.x;}
+        if (e2 <  d.x) {err += d.x; p0.y += s.y;}
     }
 }
 

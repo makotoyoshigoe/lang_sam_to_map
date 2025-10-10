@@ -7,6 +7,12 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 namespace lang_sam_to_map{
+
+struct Grid{
+    int x;
+    int y;
+};
+
 class Map
 {
     public:

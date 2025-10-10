@@ -9,10 +9,6 @@
 #include <pcl_ros/transforms.hpp>
 
 namespace lang_sam_to_map{
-struct Grid{
-    int x;
-    int y;
-};
 
 class LSAMapGenerator : public lang_sam_to_map::Map{
     public:
