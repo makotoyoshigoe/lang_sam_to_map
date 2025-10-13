@@ -16,12 +16,20 @@ LsaNavController::~LsaNavController(){}
 
 void LsaNavController::declare_param(void)
 {
-
+    declare_parameter("road_scan.max_angle_abs", 30.0);
+    declare_parameter("road_scan.min_angle_abs", 60.0);
+    declare_parameter("road_scan.angle_increment", 0.25);
+    declare_parameter("road_scan.max_range", 5.);
+    declare_parameter("road_scan.min_range", 0.1);
 }
 
 void LsaNavController::init_param(void)
 {
-
+    float max_angle = get_parameter("road_scan.max_angle_abs").as_double();
+    float min_angle = get_parameter("road_scan.min_angle_abs").as_double();
+    float angle_increment = get_parameter("road_scan.angle_increment").as_double();
+    float max_angle = get_parameter("road_scan.max_range").as_double();
+    float min_angle = get_parameter("road_scan.min_range").as_double();
 }
 
 void LsaNavController::init_pubsub(void)
@@ -33,7 +41,7 @@ void LsaNavController::init_pubsub(void)
 
 void LsaNavController::cb_lsa_map(nav_msgs::msg::OccupancyGrid::ConstSharedPtr msg)
 {
-
+    
 }
     
 } // namespace lsa_nav_controller

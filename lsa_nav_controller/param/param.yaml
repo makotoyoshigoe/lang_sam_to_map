@@ -1,0 +1,8 @@
+lsa_nav_controller:
+  ros__parameters:
+    road_scan:
+      min_angle_abs: 30.0   # [deg]
+      max_angle_abs: 60.0   # [deg]
+      angle_increment: 0.25 # [deg]
+      max_range: 5.0        # [m]
+      min_range: 0.1        # [m]
