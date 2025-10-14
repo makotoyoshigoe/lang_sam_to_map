@@ -3,6 +3,11 @@
 
 #pragma once
 
+#include <rclcpp/rclcpp.hpp>
+
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <tf2/utils.hpp>
+
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <geometry_msgs/msg/pose2_d.hpp>
 
@@ -17,11 +22,12 @@ class Map{
     void cvt_1d_to_2d(std::vector<int8_t> & data);
     void get_map_msg(nav_msgs::msg::OccupancyGrid & output);
     void cvt_2d_to_1d(std::vector<int8_t> & data);
+    std::string get_map_frame_id(void);
 
     protected:
     std::string frame_id_;
     geometry_msgs::msg::Pose2D p_org_;
-    int width_, height_;
+    uint32_t width_, height_;
     float resolution_;
     std::vector<std::vector<int8_t>> data_;
 };

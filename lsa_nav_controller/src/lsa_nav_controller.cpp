@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Makoto Yoshigoe myoshigo0127@gmail.com 
 // SPDX-License-Identifier: Apache-2.0
 
+#include <tf2_ros/create_timer_ros.h>
+
 #include "lsa_nav_controller/lsa_nav_controller.hpp"
-#include "lsa_nav_controller/map/map.hpp"
 
 namespace lsa_nav_controller
 {
@@ -17,11 +18,14 @@ LsaNavController::~LsaNavController(){}
 
 void LsaNavController::declare_param(void)
 {
-    declare_parameter("road_scan.max_angle_abs", 30.0);
-    declare_parameter("road_scan.min_angle_abs", 60.0);
+    declare_parameter("road_scan.max_angle_abs", 60.0);
+    declare_parameter("road_scan.min_angle_abs", 85.0);
     declare_parameter("road_scan.angle_increment", 0.25);
     declare_parameter("road_scan.max_range", 5.);
     declare_parameter("road_scan.min_range", 0.1);
+    declare_parameter("control_freq", 20);
+    declare_parameter("base_frame_id", "base_footprint");
+    declare_parameter("odom_frame_id", "odom");
 }
 
 void LsaNavController::init_param(void)
@@ -31,6 +35,9 @@ void LsaNavController::init_param(void)
     float angle_increment = get_parameter("road_scan.angle_increment").as_double();
     float max_range = get_parameter("road_scan.max_range").as_double();
     float min_range = get_parameter("road_scan.min_range").as_double();
+    control_freq_ = get_parameter("control_freq").as_int();
+    base_frame_id_ = get_parameter("base_frame_id").as_string();
+    road_scan_creator_.reset(new RoadScanCreator(max_angle, min_angle, angle_increment, max_range, min_range));
 }
 
 void LsaNavController::init_pubsub(void)
@@ -43,14 +50,57 @@ void LsaNavController::init_pubsub(void)
 
 void LsaNavController::cb_lsa_map(nav_msgs::msg::OccupancyGrid::ConstSharedPtr msg)
 {
-    std::unique_ptr<Map> map;
-    map = std::make_unique<Map>();
-    map->update_map(msg);
-    // map->fill_bottom();
-    // nav_msgs::msg::OccupancyGrid map_msg;
-    // map->get_map_msg(map_msg);
-    // pub_map_test_->publish(map_msg);
+    road_scan_creator_->update_map(msg);
 }
+
+void LsaNavController::main_loop(void)
+{
+    if(!init_tf_) init_tf();
+    geometry_msgs::msg::Pose2D map_to_base_pose;
+    if(!get_map_to_base_pose(map_to_base_pose)) return;
+}
+
+void LsaNavController::init_tf(void)
+{
+    try{
+        tf_buffer_.reset();
+        tf_listener_.reset();
+        tf_buffer_ = std::make_shared<tf2_ros::Buffer>(get_clock());
+        auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(
+            get_node_base_interface(), get_node_timers_interface(),
+            create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive, false));
+        tf_buffer_->setCreateTimerInterface(timer_interface);
+        tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+        init_tf_ = true;
+        RCLCPP_INFO(get_logger(), "Initialized TF");
+    }catch(std::exception & e){
+        RCLCPP_ERROR(get_logger(), "Exeption Error: %s", e.what());
+        init_tf_ = false;
+    }
+}
+
+bool LsaNavController::get_map_to_base_pose(geometry_msgs::msg::Pose2D & pose2d)
+{
+    geometry_msgs::msg::PoseStamped ident;
+	ident.header.frame_id = base_frame_id_;
+	ident.header.stamp = rclcpp::Time(0);
+	tf2::toMsg(tf2::Transform::getIdentity(), ident.pose);
+
+	geometry_msgs::msg::PoseStamped odom_pose;
+	try {
+		this->tf_buffer_->transform(ident, odom_pose, road_scan_creator_->get_map_frame_id());
+	} catch (tf2::TransformException & e) {
+		RCLCPP_WARN(
+		  get_logger(), "Failed to compute odom pose, skipping scan (%s)", e.what());
+		return false;
+	}
+	pose2d.x = odom_pose.pose.position.x;
+	pose2d.y = odom_pose.pose.position.y;
+	pose2d.theta = tf2::getYaw(odom_pose.pose.orientation);
+	return true;
+}
+
+int LsaNavController::get_loop_freq(void){return control_freq_;}
     
 } // namespace lsa_nav_controller
 
