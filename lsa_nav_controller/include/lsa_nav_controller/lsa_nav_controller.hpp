@@ -24,8 +24,8 @@ class LsaNavController : public rclcpp::Node{
     void init_tf(void);
     void main_loop(void);
     int get_loop_freq(void);
-    bool get_map_to_base_pose(geometry_msgs::msg::Pose2D & pose2d);
-
+    void publish_road_scan(void);
+    bool get_odom(geometry_msgs::msg::Pose2D & odom);
     private:
     rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr sub_lsa_map_;
     rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr pub_road_scan_;
@@ -35,7 +35,7 @@ class LsaNavController : public rclcpp::Node{
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
     int control_freq_;
-    std::string base_frame_id_;
+    std::string base_frame_id_, odom_frame_id_;
     bool init_tf_;
 };
     

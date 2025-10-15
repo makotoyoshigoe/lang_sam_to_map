@@ -18,9 +18,9 @@ LsaNavController::~LsaNavController(){}
 
 void LsaNavController::declare_param(void)
 {
-    declare_parameter("road_scan.max_angle_abs", 60.0);
-    declare_parameter("road_scan.min_angle_abs", 85.0);
-    declare_parameter("road_scan.angle_increment", 0.25);
+    declare_parameter("road_scan.max_angle_abs", 1.48);
+    declare_parameter("road_scan.min_angle_abs", 1.04);
+    declare_parameter("road_scan.angle_increment", 0.00436);
     declare_parameter("road_scan.max_range", 5.);
     declare_parameter("road_scan.min_range", 0.1);
     declare_parameter("control_freq", 20);
@@ -37,6 +37,7 @@ void LsaNavController::init_param(void)
     float min_range = get_parameter("road_scan.min_range").as_double();
     control_freq_ = get_parameter("control_freq").as_int();
     base_frame_id_ = get_parameter("base_frame_id").as_string();
+    odom_frame_id_ = get_parameter("odom_frame_id").as_string();
     road_scan_creator_.reset(new RoadScanCreator(max_angle, min_angle, angle_increment, max_range, min_range));
 }
 
@@ -57,7 +58,12 @@ void LsaNavController::main_loop(void)
 {
     if(!init_tf_) init_tf();
     geometry_msgs::msg::Pose2D map_to_base_pose;
-    if(!get_map_to_base_pose(map_to_base_pose)) return;
+    if(!get_odom(map_to_base_pose)) return;
+    road_scan_creator_->create_road_scan(map_to_base_pose);
+    //publish_road_scan();
+    nav_msgs::msg::OccupancyGrid map;
+    road_scan_creator_->get_map_msg(map);
+    pub_map_test_->publish(map);
 }
 
 void LsaNavController::init_tf(void)
@@ -79,7 +85,8 @@ void LsaNavController::init_tf(void)
     }
 }
 
-bool LsaNavController::get_map_to_base_pose(geometry_msgs::msg::Pose2D & pose2d)
+bool LsaNavController::get_odom(
+    geometry_msgs::msg::Pose2D & odom)
 {
     geometry_msgs::msg::PoseStamped ident;
 	ident.header.frame_id = base_frame_id_;
@@ -88,16 +95,26 @@ bool LsaNavController::get_map_to_base_pose(geometry_msgs::msg::Pose2D & pose2d)
 
 	geometry_msgs::msg::PoseStamped odom_pose;
 	try {
-		this->tf_buffer_->transform(ident, odom_pose, road_scan_creator_->get_map_frame_id());
+		this->tf_buffer_->transform(ident, odom_pose, odom_frame_id_);
 	} catch (tf2::TransformException & e) {
 		RCLCPP_WARN(
 		  get_logger(), "Failed to compute odom pose, skipping scan (%s)", e.what());
 		return false;
 	}
-	pose2d.x = odom_pose.pose.position.x;
-	pose2d.y = odom_pose.pose.position.y;
-	pose2d.theta = tf2::getYaw(odom_pose.pose.orientation);
+	odom.x = odom_pose.pose.position.x;
+	odom.y = odom_pose.pose.position.y;
+	odom.theta = tf2::getYaw(odom_pose.pose.orientation);
+    // RCLCPP_INFO(get_logger(), "x, y, theta: %f, %f, %f", odom.x, odom.y, 180*odom.theta/M_PI);
 	return true;
+}
+
+void LsaNavController::publish_road_scan(void)
+{
+    sensor_msgs::msg::LaserScan scan_msg;
+    road_scan_creator_->get_scan_msg(scan_msg);
+    scan_msg.header.frame_id = "lidar_link";
+    scan_msg.header.stamp = now();
+    pub_road_scan_->publish(scan_msg);
 }
 
 int LsaNavController::get_loop_freq(void){return control_freq_;}

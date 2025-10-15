@@ -12,7 +12,6 @@ RoadScan::RoadScan(
 : max_angle_abs_(max_angle_abs), min_angle_abs_(min_angle_abs), angle_increment_(angle_increment), 
   max_range_(max_range), min_range_(min_range)
 {
-
 }
 
 void RoadScan::get_road_scan(

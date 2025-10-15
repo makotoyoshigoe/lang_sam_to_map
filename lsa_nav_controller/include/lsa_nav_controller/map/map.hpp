@@ -13,6 +13,15 @@
 
 namespace lsa_nav_controller
 {
+struct Grid{
+    int x;
+    int y;
+    Grid operator-(const Grid & other) const
+    {
+        return {x - other.x, y - other.y};
+    }
+};
+
 class Map{
     public:
     Map(void);
@@ -23,6 +32,8 @@ class Map{
     void get_map_msg(nav_msgs::msg::OccupancyGrid & output);
     void cvt_2d_to_1d(std::vector<int8_t> & data);
     std::string get_map_frame_id(void);
+    bool is_out_range(Grid grid);
+    Grid point_to_grid(float x, float y);
 
     protected:
     std::string frame_id_;
@@ -30,6 +41,7 @@ class Map{
     uint32_t width_, height_;
     float resolution_;
     std::vector<std::vector<int8_t>> data_;
+    bool init_map_receive_;
 };
     
 } // namespace lsa_nav_controller
