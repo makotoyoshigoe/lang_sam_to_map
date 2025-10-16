@@ -17,7 +17,7 @@ lang_sam_to_map:
       max: 20.0
     map:
       offset:
-        x: 0.5
+        x: 0.0
         y: 10.0
       resolution: 0.1
     base_frame_id: "base_footprint"

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <tf2_ros/create_timer_ros.h>
+#include <tf2/utils.hpp>
+#include <tf2/convert.hpp>
 
 #include "lsa_nav_controller/lsa_nav_controller.hpp"
 
@@ -45,13 +47,16 @@ void LsaNavController::init_pubsub(void)
 {
     sub_lsa_map_ = create_subscription<nav_msgs::msg::OccupancyGrid>(
         "lang_sam_map", rclcpp::QoS(10), std::bind(&LsaNavController::cb_lsa_map, this, std::placeholders::_1));
-    pub_road_scan_ = create_publisher<sensor_msgs::msg::LaserScan>("scan/road", rclcpp::QoS(10));
+    pub_road_scan_ = create_publisher<sensor_msgs::msg::LaserScan>("scan/road", rclcpp::SensorDataQoS());
     pub_map_test_ = create_publisher<nav_msgs::msg::OccupancyGrid>("lsa_map/test", rclcpp::QoS(10));
 }
 
 void LsaNavController::cb_lsa_map(nav_msgs::msg::OccupancyGrid::ConstSharedPtr msg)
 {
     road_scan_creator_->update_map(msg);
+    // nav_msgs::msg::OccupancyGrid map;
+    // road_scan_creator_->get_map_msg(map);
+    // pub_map_test_->publish(map);
 }
 
 void LsaNavController::main_loop(void)
@@ -60,10 +65,10 @@ void LsaNavController::main_loop(void)
     geometry_msgs::msg::Pose2D map_to_base_pose;
     if(!get_odom(map_to_base_pose)) return;
     road_scan_creator_->create_road_scan(map_to_base_pose);
-    //publish_road_scan();
-    nav_msgs::msg::OccupancyGrid map;
-    road_scan_creator_->get_map_msg(map);
-    pub_map_test_->publish(map);
+    publish_road_scan();
+    // nav_msgs::msg::OccupancyGrid map;
+    // road_scan_creator_->get_map_msg(map);
+    // pub_map_test_->publish(map);
 }
 
 void LsaNavController::init_tf(void)

@@ -30,6 +30,7 @@ class Map{
     void fill_bottom(void);
     void cvt_1d_to_2d(std::vector<int8_t> & data);
     void get_map_msg(nav_msgs::msg::OccupancyGrid & output);
+    void get_map_wor_msg(nav_msgs::msg::OccupancyGrid & output); // 原点の回転を0にした地図を取得
     void cvt_2d_to_1d(std::vector<int8_t> & data);
     std::string get_map_frame_id(void);
     bool is_out_range(Grid grid);
@@ -42,6 +43,7 @@ class Map{
     float resolution_;
     std::vector<std::vector<int8_t>> data_;
     bool init_map_receive_;
+    geometry_msgs::msg::Quaternion p_org_q_;
 };
     
 } // namespace lsa_nav_controller

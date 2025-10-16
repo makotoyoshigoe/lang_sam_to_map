@@ -22,9 +22,6 @@ bool RoadScanCreator::create_road_scan(geometry_msgs::msg::Pose2D & odom)
 {
     if(!init_map_receive_) return false;
     odom_ = odom;
-    RCLCPP_INFO(rclcpp::get_logger("lsa_nav_controller"), 
-        "x, y: %f, %f, px, py: %f, %f", 
-        odom_.x, odom_.y, p_org_.x, p_org_.y); 
     scanning_road_side(-max_angle_abs_, -min_angle_abs_);
     scanning_road_side(min_angle_abs_, max_angle_abs_);
     return true;
@@ -34,7 +31,6 @@ void RoadScanCreator::scanning_road_side(float start_deg, float end_deg)
 {
     size_t is = rad_to_index(start_deg), ie = rad_to_index(end_deg);
     Grid gs = point_to_grid(odom_.x, odom_.y);
-    // RCLCPP_INFO(rclcpp::get_logger("lsa_nav_controller"), "gs.x, gs.y: %d, %d", gs.x, gs.y);
     for(size_t i=is; i<=ie; ++i){
         float theta = odom_.theta + index_to_rad(i);
         float xe = odom_.x + max_range_ * cos(theta);
@@ -42,6 +38,7 @@ void RoadScanCreator::scanning_road_side(float start_deg, float end_deg)
         Grid ge = point_to_grid(xe, ye);
         ranges_[i] = distance_from_occupied_grid(gs, ge);
     }
+    // RCLCPP_INFO(rclcpp::get_logger("lsa_nav_controller"), "Complete Road Scanning");
 }
 
 size_t RoadScanCreator::rad_to_index(float rad){return (rad - min_angle_) / angle_increment_;}
@@ -59,14 +56,12 @@ float RoadScanCreator::distance_from_occupied_grid(Grid gs, Grid ge)
     while (true) {
         if (g_cur.x == ge.x && g_cur.y == ge.y) return max_range_;
         if (is_out_range(g_cur)){
-            // RCLCPP_INFO(rclcpp::get_logger("lsa_nav_controller"), "Out Range");
             return max_range_;
         }
         if (data_[g_cur.x][g_cur.y] == 100){
             Grid gd = g_cur - gs;
             return hypot(gd.x, gd.y) * resolution_;
         }
-        data_[g_cur.x][g_cur.y] = 100;
         int e2 = 2 * err;
         if (e2 > -d.y) {err -= d.y; g_cur.x += s.x;}
         if (e2 <  d.x) {err += d.x; g_cur.y += s.y;}
@@ -80,7 +75,6 @@ void RoadScanCreator::get_scan_msg(sensor_msgs::msg::LaserScan & scan_msg)
     scan_msg.range_min = min_range_;
     scan_msg.range_max = max_range_ * 2;
     scan_msg.ranges = ranges_;
-    scan_msg.intensities.assign(2*max_angle_abs_/angle_increment_, 1.0);
 }
 
 RoadScanCreator::~RoadScanCreator(){}
