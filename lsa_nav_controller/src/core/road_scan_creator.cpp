@@ -8,21 +8,19 @@ namespace lsa_nav_controller
 {
 
 RoadScanCreator::RoadScanCreator(
-    float max_angle_abs, float min_angle_abs, float angle_increment, float max_range, float min_range)
+    float max_angle_abs, float min_angle_abs, float angle_increment, float max_range, float min_range, float front_angle_abs)
 : Map(), max_angle_abs_(max_angle_abs), min_angle_abs_(min_angle_abs), angle_increment_(angle_increment), 
-  max_range_(max_range), min_range_(min_range) 
+  max_range_(max_range), min_range_(min_range), max_angle_(max_angle_abs), min_angle_(-max_angle_abs), front_angle_abs_(front_angle_abs) 
 {
     ranges_.assign(2*max_angle_abs/angle_increment, INFINITY);
-    max_angle_ = max_angle_abs;
-    min_angle_ = -max_angle_abs;
 }
 
-bool RoadScanCreator::create_road_scan(geometry_msgs::msg::Pose2D & odom)
+bool RoadScanCreator::create_road_scan(void)
 {
     if(!init_map_receive_) return false;
-    odom_ = odom;
     scanning_road_side(-max_angle_abs_, -min_angle_abs_);
     scanning_road_side(min_angle_abs_, max_angle_abs_);
+    scanning_road_side(-front_angle_abs_, front_angle_abs_);
     return true;
 }
 
@@ -65,14 +63,40 @@ float RoadScanCreator::distance_from_occupied_grid(Grid gs, Grid ge)
         if (e2 <  d.x) {err += d.x; g_cur.y += s.y;}
     }
 }
-void RoadScanCreator::get_scan_msg(sensor_msgs::msg::LaserScan & scan_msg)
+
+void RoadScanCreator::get_average_ranges(
+    geometry_msgs::msg::Pose2D & odom, 
+    float & right, float & left, float & front)
 {
-    scan_msg.angle_min = min_angle_;
-    scan_msg.angle_max = max_angle_;
-    scan_msg.angle_increment = angle_increment_;
-    scan_msg.range_min = min_range_;
-    scan_msg.range_max = max_range_ * 2;
-    scan_msg.ranges = ranges_;
+    odom_ = odom;
+    create_road_scan();
+    right = get_abs_ave_lateral(-max_angle_abs_, -min_angle_abs_);
+    left = get_abs_ave_lateral(min_angle_abs_, max_angle_abs_);
+    front = get_abs_ave_vertical(-front_angle_abs_, front_angle_abs_);
+}
+
+float RoadScanCreator::get_abs_ave_lateral(float start_rad, float end_rad)
+{
+    size_t is = rad_to_index(start_rad), ie = rad_to_index(end_rad);
+    float sum = 0, n = 0, rad = start_rad;
+    for(size_t i = is; i <= ie; ++i){
+        sum += ranges_[i] * fabs(sin(rad));
+        ++n;
+        rad += angle_increment_;
+    }
+    return sum / n;
+}
+
+float RoadScanCreator::get_abs_ave_vertical(float start_rad, float end_rad)
+{
+    size_t is = rad_to_index(start_rad), ie = rad_to_index(end_rad);
+    float sum = 0, n = 0, rad = start_rad;
+    for(size_t i = is; i <= ie; ++i){
+        sum += ranges_[i] * fabs(cos(rad));
+        ++n;
+        rad += angle_increment_;
+    }
+    return sum / n;
 }
 
 RoadScanCreator::~RoadScanCreator(){}

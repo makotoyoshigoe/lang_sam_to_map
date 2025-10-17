@@ -5,6 +5,7 @@
 
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
+#include <geometry_msgs/msg/twist.hpp>
 
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
@@ -25,12 +26,14 @@ class LsaNavController : public rclcpp::Node{
     void init_tf(void);
     void main_loop(void);
     int get_loop_freq(void);
-    void publish_road_scan(void);
     bool get_odom(geometry_msgs::msg::Pose2D & odom);
+    void publish_cmd_vel(CmdVel & cmd_vel);
+
     private:
     rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr sub_lsa_map_;
     rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr pub_road_scan_;
     rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr pub_map_test_;
+    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pub_cmd_vel_;
     std::unique_ptr<RoadScanCreator> road_scan_creator_;
     std::unique_ptr<Controller> controller_;
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;

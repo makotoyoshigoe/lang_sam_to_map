@@ -3,14 +3,23 @@
 
 #pragma once
 
+#include <vector>
+
 namespace lsa_nav_controller
 {
+struct CmdVel
+{
+    float lin_vel;
+    float ang_vel;
+};
+
 class Controller{
     public:
     Controller(
         float lin_max_vel, float lin_min_vel, float ang_max_vel, float ang_min_vel, 
         float lin_max_acc, float lin_min_acc, float ang_max_acc, float ang_min_acc);
-    
+    CmdVel get_cmd_vel(float ave_right, float ave_left, float ave_front);
+
     ~Controller();
 
     private:

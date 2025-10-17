@@ -6,10 +6,7 @@ lsa_nav_controller:
       angle_increment: 0.00436    # [rad]
       max_range: 5.0              # [m]
       min_range: 0.1              # [m]
-<<<<<<< HEAD
-    control_freq: 20              # [Hz]
-=======
-
+      front_angle_abs: 0.523      # [rad]
     control_freq: 20              # [Hz]
     
     controller:
@@ -26,4 +23,3 @@ lsa_nav_controller:
         max: 0.1
         min: -0.1
       
->>>>>>> feat/publish-road-scan
