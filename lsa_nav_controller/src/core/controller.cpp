@@ -6,9 +6,13 @@
 namespace lsa_nav_controller
 {
 
-Controller::Controller()
+Controller::Controller(
+    float lin_max_vel, float lin_min_vel, float ang_max_vel, float ang_min_vel, 
+    float lin_max_acc, float lin_min_acc, float ang_max_acc, float ang_min_acc)
+: lin_max_vel_(lin_max_vel), lin_min_vel_(lin_min_vel), ang_max_vel_(ang_max_vel), ang_min_vel_(ang_min_vel), 
+  lin_max_acc_(lin_max_acc), lin_min_acc_(lin_min_acc), ang_max_acc_(ang_max_acc), ang_min_acc_(ang_min_acc) 
 {
-
+    
 }
 
 

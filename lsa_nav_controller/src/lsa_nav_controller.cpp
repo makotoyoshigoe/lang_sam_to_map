@@ -48,7 +48,16 @@ void LsaNavController::init_param(void)
     control_freq_ = get_parameter("control_freq").as_int();
     base_frame_id_ = get_parameter("base_frame_id").as_string();
     odom_frame_id_ = get_parameter("odom_frame_id").as_string();
+    float lin_max_vel = get_parameter("controller.linear_vel.max").as_double();
+    float lin_min_vel = get_parameter("controller.linear_vel.min").as_double();
+    float ang_max_vel = get_parameter("controller.angular_vel.max").as_double();
+    float ang_min_vel = get_parameter("controller.angular_vel.min").as_double();
+    float lin_max_acc = get_parameter("controller.linear_acc.max").as_double();
+    float lin_min_acc = get_parameter("controller.linear_acc.min").as_double();
+    float ang_max_acc = get_parameter("controller.angular_acc.max").as_double();
+    float ang_min_acc = get_parameter("controller.angular_acc.mim").as_double();
     road_scan_creator_.reset(new RoadScanCreator(max_angle, min_angle, angle_increment, max_range, min_range));
+    controller_.reset(new Controller(lin_max_vel, lin_min_vel, ang_max_vel, ang_min_vel, lin_max_acc, lin_min_acc, ang_max_acc, ang_min_acc));
 }
 
 void LsaNavController::init_pubsub(void)

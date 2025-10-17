@@ -10,6 +10,7 @@
 #include <tf2_ros/transform_listener.h>
 
 #include "lsa_nav_controller/core/road_scan_creator.hpp"
+#include "lsa_nav_controller/core/controller.hpp"
 
 namespace lsa_nav_controller
 {
@@ -31,6 +32,7 @@ class LsaNavController : public rclcpp::Node{
     rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr pub_road_scan_;
     rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr pub_map_test_;
     std::unique_ptr<RoadScanCreator> road_scan_creator_;
+    std::unique_ptr<Controller> controller_;
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
