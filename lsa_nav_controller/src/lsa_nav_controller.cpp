@@ -28,6 +28,14 @@ void LsaNavController::declare_param(void)
     declare_parameter("control_freq", 20);
     declare_parameter("base_frame_id", "base_footprint");
     declare_parameter("odom_frame_id", "odom");
+    declare_parameter("controller.linear_vel.max", 0.2);
+    declare_parameter("controller.linear_vel.min", 0.0);
+    declare_parameter("controller.angular_vel.max", 0.5);
+    declare_parameter("controller.angular_vel.min", -0.5);
+    declare_parameter("controller.linear_acc.max", 0.05);
+    declare_parameter("controller.linear_acc.min", 0.0);
+    declare_parameter("controller.angular_acc.max", 0.1);
+    declare_parameter("controller.angular_acc.mim", -0.1);
 }
 
 void LsaNavController::init_param(void)
@@ -54,9 +62,6 @@ void LsaNavController::init_pubsub(void)
 void LsaNavController::cb_lsa_map(nav_msgs::msg::OccupancyGrid::ConstSharedPtr msg)
 {
     road_scan_creator_->update_map(msg);
-    // nav_msgs::msg::OccupancyGrid map;
-    // road_scan_creator_->get_map_msg(map);
-    // pub_map_test_->publish(map);
 }
 
 void LsaNavController::main_loop(void)
@@ -117,7 +122,7 @@ void LsaNavController::publish_road_scan(void)
 {
     sensor_msgs::msg::LaserScan scan_msg;
     road_scan_creator_->get_scan_msg(scan_msg);
-    scan_msg.header.frame_id = "lidar_link";
+    scan_msg.header.frame_id = base_frame_id_;
     scan_msg.header.stamp = now();
     pub_road_scan_->publish(scan_msg);
 }
