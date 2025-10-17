@@ -29,6 +29,8 @@ endif()
 add_executable(lsa_nav_controller
 	src/lsa_nav_controller.cpp
     src/lsa_nav_controller_main.cpp
+    src/map/map.cpp
+    src/core/road_scan_creator.cpp
 )
 
 ament_target_dependencies(lsa_nav_controller
