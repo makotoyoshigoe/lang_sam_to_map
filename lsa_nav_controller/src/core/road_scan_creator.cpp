@@ -9,9 +9,8 @@ namespace lsa_nav_controller
 
 RoadScanCreator::RoadScanCreator(
     float max_angle_abs, float min_angle_abs, float angle_increment, float max_range, float min_range)
-: max_angle_abs_(max_angle_abs), min_angle_abs_(min_angle_abs), angle_increment_(angle_increment), 
-  max_range_(max_range), min_range_(min_range), 
-  Map()
+: Map(), max_angle_abs_(max_angle_abs), min_angle_abs_(min_angle_abs), angle_increment_(angle_increment), 
+  max_range_(max_range), min_range_(min_range) 
 {
     ranges_.assign(2*max_angle_abs/angle_increment, INFINITY);
     max_angle_ = max_angle_abs;
@@ -38,10 +37,6 @@ void RoadScanCreator::scanning_road_side(float start_deg, float end_deg)
         Grid ge = point_to_grid(xe, ye);
         ranges_[i] = distance_from_occupied_grid(gs, ge);
     }
-<<<<<<< HEAD
-    // RCLCPP_INFO(rclcpp::get_logger("lsa_nav_controller"), "Complete Road Scanning");
-=======
->>>>>>> feat/publish-road-scan
 }
 
 size_t RoadScanCreator::rad_to_index(float rad){return (rad - min_angle_) / angle_increment_;}
