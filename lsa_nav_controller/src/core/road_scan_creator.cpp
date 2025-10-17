@@ -38,7 +38,10 @@ void RoadScanCreator::scanning_road_side(float start_deg, float end_deg)
         Grid ge = point_to_grid(xe, ye);
         ranges_[i] = distance_from_occupied_grid(gs, ge);
     }
+<<<<<<< HEAD
     // RCLCPP_INFO(rclcpp::get_logger("lsa_nav_controller"), "Complete Road Scanning");
+=======
+>>>>>>> feat/publish-road-scan
 }
 
 size_t RoadScanCreator::rad_to_index(float rad){return (rad - min_angle_) / angle_increment_;}
