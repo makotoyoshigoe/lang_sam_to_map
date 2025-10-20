@@ -22,4 +22,6 @@ lsa_nav_controller:
       angular_acc:
         max: 0.1
         min: -0.1
-      
+      kp: 10.0
+      ki: 0.0
+      kd: 0.0 
