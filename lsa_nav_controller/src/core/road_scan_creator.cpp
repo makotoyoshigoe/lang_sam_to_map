@@ -48,20 +48,22 @@ float RoadScanCreator::distance_from_occupied_grid(Grid gs, Grid ge)
     Grid s{(gs.x < ge.x) ? 1 : -1, (gs.y < ge.y) ? 1 : -1};
     
     int err = d.x - d.y;
+    float result = max_range_;
 
     while (true) {
-        if (g_cur.x == ge.x && g_cur.y == ge.y) return max_range_;
-        if (is_out_range(g_cur)){
-            return max_range_;
-        }
-        if (data_[g_cur.x][g_cur.y] == 100){
-            Grid gd = g_cur - gs;
-            return hypot(gd.x, gd.y) * resolution_;
-        }
+        if (g_cur.x == ge.x && g_cur.y == ge.y) return result;
+        if (is_out_range(g_cur)) return result;
+        if (data_[g_cur.x][g_cur.y] == 0) result = get_dist_two_grids(gs, g_cur);
+        if (data_[g_cur.x][g_cur.y] == 100) return get_dist_two_grids(gs, g_cur);
         int e2 = 2 * err;
         if (e2 > -d.y) {err -= d.y; g_cur.x += s.x;}
         if (e2 <  d.x) {err += d.x; g_cur.y += s.y;}
     }
+}
+float RoadScanCreator::get_dist_two_grids(Grid g1, Grid g2)
+{
+    Grid gd = g2 - g1;
+    return hypot(gd.x, gd.y) * resolution_;
 }
 
 void RoadScanCreator::get_average_ranges(
@@ -80,7 +82,7 @@ float RoadScanCreator::get_abs_ave_lateral(float start_rad, float end_rad)
     size_t is = rad_to_index(start_rad), ie = rad_to_index(end_rad);
     float sum = 0, n = 0, rad = start_rad;
     for(size_t i = is; i <= ie; ++i){
-        sum += ranges_[i] * fabs(sin(rad));
+        sum += ranges_[i] * fabs(sin(odom_.theta + rad));
         ++n;
         rad += angle_increment_;
     }
@@ -92,7 +94,7 @@ float RoadScanCreator::get_abs_ave_vertical(float start_rad, float end_rad)
     size_t is = rad_to_index(start_rad), ie = rad_to_index(end_rad);
     float sum = 0, n = 0, rad = start_rad;
     for(size_t i = is; i <= ie; ++i){
-        sum += ranges_[i] * fabs(cos(rad));
+        sum += ranges_[i] * fabs(cos(odom_.theta + rad));
         ++n;
         rad += angle_increment_;
     }

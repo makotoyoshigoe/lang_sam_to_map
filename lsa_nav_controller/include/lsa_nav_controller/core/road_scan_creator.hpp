@@ -20,6 +20,7 @@ class RoadScanCreator : public Map{
     float get_abs_ave_vertical(float start_rad, float end_rad);
     bool create_road_scan(void);
     void scanning_road_side(float start_rad, float end_rad);
+    float get_dist_two_grids(Grid g1, Grid g2);
     size_t rad_to_index(float rad);
     float index_to_rad(size_t index);
     float distance_from_occupied_grid(Grid gs, Grid ge);

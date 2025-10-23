@@ -17,7 +17,7 @@ class Controller{
     public:
     Controller(
         float lin_max_vel, float lin_min_vel, float ang_max_vel, float ang_min_vel, 
-        float lin_max_acc, float lin_min_acc, float ang_max_acc, float ang_min_acc, 
+        float lin_acc_th, float lin_dec_th, float ang_acc_th, float ang_dec_th, 
         float kp, float ki, float kd, float rate);
     CmdVel get_cmd_vel(float ave_right, float ave_left, float ave_front);
     float get_ang_vel(float ave_right, float ave_left);
@@ -28,10 +28,11 @@ class Controller{
 
     private:
     float lin_max_vel_, lin_min_vel_, ang_max_vel_, ang_min_vel_;
-    float lin_max_acc_, lin_min_acc_, ang_max_acc_, ang_min_acc_;
+    float lin_acc_th_, lin_dec_th_, ang_acc_th_, ang_dec_th_;
     float kp_, ki_, kd_, rate_;
     float ei_, pre_e_;
     CmdVel pre_cmd_;
+    bool init_ei_;
 };
     
 } // namespace lsa_nav_controller

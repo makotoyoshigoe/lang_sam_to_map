@@ -33,11 +33,11 @@ void LsaNavController::declare_param(void)
     declare_parameter("controller.linear_vel.min", 0.0);
     declare_parameter("controller.angular_vel.max", 0.5);
     declare_parameter("controller.angular_vel.min", -0.5);
-    declare_parameter("controller.linear_acc.max", 0.05);
-    declare_parameter("controller.linear_acc.min", 0.0);
-    declare_parameter("controller.angular_acc.max", 0.1);
-    declare_parameter("controller.angular_acc.mim", -0.1);
-    declare_parameter("controller.kp", 10.);
+    declare_parameter("controller.linear_acc_th", 0.05);
+    declare_parameter("controller.linear_dec_th", 0.05);
+    declare_parameter("controller.angular_acc_th", 0.1);
+    declare_parameter("controller.angular_dec_th", -0.1);
+    declare_parameter("controller.kp", 1.);
     declare_parameter("controller.ki", 0.);
     declare_parameter("controller.kd", 0.);
 }
@@ -57,16 +57,18 @@ void LsaNavController::init_param(void)
     float lin_min_vel = get_parameter("controller.linear_vel.min").as_double();
     float ang_max_vel = get_parameter("controller.angular_vel.max").as_double();
     float ang_min_vel = get_parameter("controller.angular_vel.min").as_double();
-    float lin_max_acc = get_parameter("controller.linear_acc.max").as_double();
-    float lin_min_acc = get_parameter("controller.linear_acc.min").as_double();
-    float ang_max_acc = get_parameter("controller.angular_acc.max").as_double();
-    float ang_min_acc = get_parameter("controller.angular_acc.mim").as_double();
+    float lin_acc_th = get_parameter("controller.linear_acc_th").as_double();
+    float lin_dec_th = get_parameter("controller.linear_dec_th").as_double();
+    float ang_acc_th = get_parameter("controller.angular_acc_th").as_double();
+    float ang_dec_th = get_parameter("controller.angular_dec_th").as_double();
     float kp = get_parameter("controller.kp").as_double();
     float ki = get_parameter("controller.ki").as_double();
     float kd = get_parameter("controller.kd").as_double();
     road_scan_creator_.reset(new RoadScanCreator(max_angle, min_angle, angle_increment, max_range, min_range, front_angle_abs));
     controller_.reset(new Controller(
-        lin_max_vel, lin_min_vel, ang_max_vel, ang_min_vel, lin_max_acc, lin_min_acc, ang_max_acc, ang_min_acc, kp, ki, kd, control_freq_));
+        lin_max_vel, lin_min_vel, ang_max_vel, ang_min_vel, 
+        lin_acc_th, lin_dec_th, ang_acc_th, ang_dec_th, 
+        kp, ki, kd, 1 / (float)control_freq_));
 }
 
 void LsaNavController::init_pubsub(void)
