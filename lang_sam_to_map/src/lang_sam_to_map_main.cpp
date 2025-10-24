@@ -13,6 +13,7 @@ int main(int argc, char ** argv)
             RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Waiting for Response");
             node->send_request();
         }
+        node->updated_moved_distance();
         rclcpp::spin_some(node);
         loop_rate.sleep();
     }
