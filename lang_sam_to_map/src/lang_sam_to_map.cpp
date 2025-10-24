@@ -9,16 +9,15 @@
 #include <ctime>
 #include <tf2/convert.h>
 #include <tf2/utils.h>
-// #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <tf2_ros/create_timer_ros.h>
 
-#include <pcl_ros/transforms.hpp>
+// #include <pcl_ros/transforms.hpp>
 
 namespace lang_sam_to_map{
 LangSamToMap::LangSamToMap(void)
  : Node("lang_sam_to_map"), 
    sync_(approximate_policy_(10), sub_depth_, sub_color_, sub_camera_info_), 
-   processing_(false), init_tf_(false), last_map_publish_t_(now())
+   moved_distance_(INFINITY), processing_(false), init_tf_(false), reset_moved_distance_(false), last_map_publish_t_(now())
 {
     declare_param();
     init_param();
@@ -36,11 +35,11 @@ void LangSamToMap::declare_param(void)
     this->declare_parameter("lsa.text_threshold", 0.25);
     this->declare_parameter("node_freq", 20);
     this->declare_parameter("interval.time", 5.0);
-    this->declare_parameter("interval.distance", 5);
+    this->declare_parameter("interval.distance", 5.0);
     this->declare_parameter("pointcloud.publish", false);
     this->declare_parameter("pointcloud.voxel_grid.leaf_size", 0.025);
-    this->declare_parameter("valid_threshold.min", 0.3);
-    this->declare_parameter("valid_threshold.max", 10.0);
+    this->declare_parameter("depth.valid_threshold.min", 0.3);
+    this->declare_parameter("depth.valid_threshold.max", 10.0);
     this->declare_parameter("map.offset.x", 0.);
     this->declare_parameter("map.offset.y", 0.);
     this->declare_parameter("map.resolution", 0.1);
@@ -56,11 +55,11 @@ void LangSamToMap::init_param(void)
     base_frame_id_ = this->get_parameter("base_frame_id").as_string();
     node_freq_ = this->get_parameter("node_freq").as_int();
     time_interval_ = this->get_parameter("interval.time").as_double();
-    distance_interval_ = this->get_parameter("interval.distance").as_int();
+    distance_interval_ = this->get_parameter("interval.distance").as_double();
     publish_pointcloud_ = this->get_parameter("pointcloud.publish").as_bool();
     float vg_leaf_size = this->get_parameter("pointcloud.voxel_grid.leaf_size").as_double();
-    float min_valid_th = this->get_parameter("valid_threshold.min").as_double();
-    float max_valid_th = this->get_parameter("valid_threshold.max").as_double();
+    float min_valid_th = this->get_parameter("depth.valid_threshold.min").as_double();
+    float max_valid_th = this->get_parameter("depth.valid_threshold.max").as_double();
     float map_offset_x = this->get_parameter("map.offset.x").as_double();
     float map_offset_y = this->get_parameter("map.offset.y").as_double();
     float map_resolution = this->get_parameter("map.resolution").as_double();
@@ -172,6 +171,7 @@ void LangSamToMap::send_request(void)
     double ox, oy;
     geometry_msgs::msg::Quaternion oq;
     if(!get_odom(ox, oy, oq)) return;
+    reset_moved_distance_ = true;
     lsa_map_generator_->set_origin(ox, oy, oq);
     if(init_request_) RCLCPP_INFO(get_logger(), "Send Request to Server, %lf second since last request", get_diff_time());
     else RCLCPP_INFO(get_logger(), "Send request for the first time");
@@ -226,12 +226,7 @@ void LangSamToMap::handle_process(
 			pub_lang_sam_map_->publish(lang_sam_map);
 
             // Create Visualize Masks, Contours, BBox and Publish it
-            //sensor_msgs::msg::Image vis_raw_mask_msg, vis_mask_msg;
             sensor_msgs::msg::Image vis_mask_msg;
-            // if(lsa_map_generator_->get_visualize_msg(
-            //     true, vis_raw_mask_msg, color_msg_, response_msg->boxes)){
-            //     pub_vis_raw_mask_->publish(vis_raw_mask_msg);
-            // }
             if(lsa_map_generator_->get_visualize_msg(
                 false, vis_mask_msg, color_msg_, response_msg->boxes)){
                 pub_vis_mask_->publish(vis_mask_msg);
@@ -246,7 +241,8 @@ int LangSamToMap::get_node_freq(void){return node_freq_;}
 
 bool LangSamToMap::flg_send_request(void)
 {
-    return (get_diff_time() >= time_interval_ || !init_request_) && init_msg_receive_ && !processing_;
+    return (get_diff_time() >= time_interval_ || moved_distance_ >= distance_interval_ || !init_request_) 
+            && init_msg_receive_ && !processing_;
 }
 
 double LangSamToMap::get_diff_time(void)
@@ -254,4 +250,22 @@ double LangSamToMap::get_diff_time(void)
     return (this->get_clock()->now() - last_map_publish_t_).seconds();
 }
 
+void LangSamToMap::updated_moved_distance(void)
+{
+    if(!init_tf_) return;
+    double ox, oy;
+    geometry_msgs::msg::Quaternion oq;
+    if(!get_odom(ox, oy, oq)) return;
+    if(reset_moved_distance_){
+        moved_distance_ = 0.0;
+        reset_moved_distance_ = false;
+    }else{
+        double dx = ox - pre_odom_x_;
+        double dy = oy - pre_odom_y_;
+        moved_distance_ += hypot(dx, dy);
+    }
+    pre_odom_x_ = ox;
+    pre_odom_y_ = oy; 
 }
+
+} // namespace lang_sam_to_map

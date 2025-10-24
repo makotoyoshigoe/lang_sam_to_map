@@ -38,6 +38,7 @@ public:
     int get_node_freq(void);
     bool flg_send_request(void);
     double get_diff_time(void);
+    void updated_moved_distance(void);
 
 private:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_color_pc2_;
@@ -57,11 +58,12 @@ private:
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
     std::shared_ptr<ros2_lang_sam_msgs::srv::TextSegmentation::Request> request_msg_;
-    float time_interval_;
-    bool processing_, publish_pointcloud_, init_msg_receive_, init_request_, init_tf_;
-    int node_freq_, distance_interval_;
+    float time_interval_, distance_interval_, moved_distance_;
+    bool processing_, publish_pointcloud_, init_msg_receive_, init_request_, init_tf_, reset_moved_distance_;
+    int node_freq_;
     rclcpp::Time last_map_publish_t_;
     std::string base_frame_id_, odom_frame_id_;
+    float pre_odom_x_, pre_odom_y_;
 
     sensor_msgs::msg::Image::ConstSharedPtr depth_msg_, color_msg_;
     sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info_msg_;

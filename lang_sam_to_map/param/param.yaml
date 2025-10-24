@@ -8,14 +8,15 @@ lang_sam_to_map:
     node_freq: 20
     interval:
       time: 10.0
-      distance: 5
+      distance: 5.0
     pointcloud: 
       publish: false
       voxel_grid:
         leaf_size: 0.05
-    valid_threshold:
-      min: 1.5
-      max: 20.0
+    depth: 
+      valid_threshold:
+        min: 1.5
+        max: 20.0
     map:
       offset:
         x: 0.0
