@@ -21,8 +21,7 @@ void LangSamToMapServer::cb_get_map(
     const std::shared_ptr<lang_sam_nav_msgs::srv::GetMap::Request> request,
     std::shared_ptr<lang_sam_nav_msgs::srv::GetMap::Response> response)
 {
-    handle_process(
-        lsa_client_->async_send_request(request_msg_));
+    send_request();
     nav_msgs::msg::OccupancyGrid lang_sam_map;
     lsa_map_generator_->get_map_msg(lang_sam_map);
     response->map = lang_sam_map;
