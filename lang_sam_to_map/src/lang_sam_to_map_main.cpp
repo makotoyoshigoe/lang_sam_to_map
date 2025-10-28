@@ -6,7 +6,7 @@
 int main(int argc, char ** argv)
 {
     rclcpp::init(argc, argv);
-    auto node = std::make_shared<lang_sam_to_map::LangSamToMap>();
+    auto node = std::make_shared<lang_sam_to_map::LangSamToMap>("lang_sam_to_map");
     rclcpp::Rate loop_rate(node->get_node_freq());
     while (rclcpp::ok()){
         if(node->flg_send_request()){

@@ -18,10 +18,24 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
-find_package(lang_san_nav_msgs REQUIRED)
+find_package(lang_sam_nav_msgs REQUIRED)
 
 add_executable(lang_sam_to_map
     src/lang_sam_to_map_main.cpp
+    src/lang_sam_to_map.cpp
+	src/core/lsa_map_generator.cpp
+    src/core/rgbd_pointcloud_converter.cpp
+	src/sensor/depth_image.cpp
+	src/sensor/image.cpp
+    src/sensor/mask_images.cpp
+    src/sensor/rgb_image.cpp
+    src/sensor/rgbd_image.cpp
+	src/map/map.cpp
+)
+
+add_executable(lang_sam_to_map_server
+    src/server_node/lang_sam_to_map_server_main.cpp
+    src/server_node/lang_sam_to_map_server.cpp
     src/lang_sam_to_map.cpp
 	src/core/lsa_map_generator.cpp
     src/core/rgbd_pointcloud_converter.cpp
@@ -46,7 +60,22 @@ ament_target_dependencies(lang_sam_to_map
     tf2_ros
     tf2_geometry_msgs
 	nav_msgs
-    lang_san_nav_msgs
+)
+
+ament_target_dependencies(lang_sam_to_map_server
+    ament_cmake
+    rclcpp
+    sensor_msgs
+    cv_bridge
+    pcl_ros
+    image_geometry
+    message_filters
+    ros2_lang_sam_msgs
+    tf2
+    tf2_ros
+    tf2_geometry_msgs
+    nav_msgs
+    lang_sam_nav_msgs
 )
 
 target_include_directories(lang_sam_to_map PUBLIC
@@ -55,7 +84,17 @@ target_include_directories(lang_sam_to_map PUBLIC
 	${OpenCV_INCLUDE_DIRS}
 )
 
+target_include_directories(lang_sam_to_map_server PUBLIC
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+	$<INSTALL_INTERFACE:include>
+	${OpenCV_INCLUDE_DIRS}
+)
+
 install(TARGETS lang_sam_to_map
+    DESTINATION lib/${PROJECT_NAME}
+)
+
+install(TARGETS lang_sam_to_map_server
     DESTINATION lib/${PROJECT_NAME}
 )
 

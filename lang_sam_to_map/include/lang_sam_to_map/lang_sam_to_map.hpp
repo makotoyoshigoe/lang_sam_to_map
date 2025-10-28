@@ -16,7 +16,7 @@
 namespace lang_sam_to_map{
 class LangSamToMap : public rclcpp::Node{
 public:
-	LangSamToMap(void);
+	LangSamToMap(std::string node_name);
 	~LangSamToMap();
     void declare_param(void);
     void init_param(void);
@@ -40,7 +40,7 @@ public:
     double get_diff_time(void);
     void updated_moved_distance(void);
 
-private:
+protected:
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_color_pc2_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_vis_raw_mask_;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_vis_mask_;

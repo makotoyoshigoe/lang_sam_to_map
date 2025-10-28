@@ -14,8 +14,8 @@
 // #include <pcl_ros/transforms.hpp>
 
 namespace lang_sam_to_map{
-LangSamToMap::LangSamToMap(void)
- : Node("lang_sam_to_map"), 
+LangSamToMap::LangSamToMap(std::string node_name)
+ : Node(node_name), 
    sync_(approximate_policy_(10), sub_depth_, sub_color_, sub_camera_info_), 
    moved_distance_(INFINITY), processing_(false), init_tf_(false), reset_moved_distance_(false), last_map_publish_t_(now())
 {
