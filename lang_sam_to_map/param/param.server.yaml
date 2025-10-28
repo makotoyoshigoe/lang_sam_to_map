@@ -1,0 +1,28 @@
+lang_sam_to_map_server:
+  ros__parameters:
+    lsa:
+      # text_prompt: "various sidewalks and tiles"
+      text_prompt: "lanes"
+      box_threshold: 0.3
+      text_threshold: 0.25
+    node_freq: 20
+    interval:
+      time: 10.0
+      distance: 5.0
+    pointcloud: 
+      publish: false
+      voxel_grid:
+        leaf_size: 0.05
+    depth: 
+      valid_threshold:
+        min: 1.5
+        max: 20.0
+    map:
+      offset:
+        x: 0.0
+        y: 10.0
+      resolution: 0.1
+    base_frame_id: "base_footprint"
+    odom_frame_id: "odom"
+    noise_contour_area_threshold: 1000.0
+    connect_grid_threshold: 1.0
