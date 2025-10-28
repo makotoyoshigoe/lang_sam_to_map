@@ -45,8 +45,6 @@ void LSAMapGenerator::update_image_infos(
 bool LSAMapGenerator::create_grid_map_from_contours(
     const tf2::Transform & tf_camera_to_base)
 {
-    // Reset Map
-    reset_map();
 	RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Started to create map");
     try{
         // Convert Contours 2D to 3D Point
