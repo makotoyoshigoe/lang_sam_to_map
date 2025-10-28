@@ -19,7 +19,6 @@ def generate_launch_description():
     # パッケージ共有ディレクトリ取得
     pkg_dir = get_package_share_directory('lang_sam_to_map')
     lsa_pkg = get_package_share_directory('ros2_lang_sam')
-    rs_pkg = get_package_share_directory('realsense2_camera')
 
     # RViz設定ファイルパス
     rviz_config = os.path.join(pkg_dir, 'rviz', 'rviz.rviz')
