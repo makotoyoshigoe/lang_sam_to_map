@@ -26,8 +26,6 @@ LangSamToMap::LangSamToMap(std::string node_name)
     std::srand(static_cast<unsigned int>(std::time(nullptr)));
 }
 
-LangSamToMap::~LangSamToMap(){}
-
 void LangSamToMap::declare_param(void)
 {
     this->declare_parameter("lsa.text_prompt", "side walk");
@@ -267,5 +265,7 @@ void LangSamToMap::updated_moved_distance(void)
     pre_odom_x_ = ox;
     pre_odom_y_ = oy; 
 }
+
+LangSamToMap::~LangSamToMap(){}
 
 } // namespace lang_sam_to_map
