@@ -3,4 +3,5 @@
 ---
 
 # Response
+bool success
 nav_msgs/OccupancyGrid map
