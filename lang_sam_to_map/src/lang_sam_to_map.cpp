@@ -205,6 +205,8 @@ void LangSamToMap::handle_process(
 {
     std::shared_ptr<ros2_lang_sam_msgs::srv::TextSegmentation::Response> response_msg;
     response_msg = future.get();
+    lsa_map_generator_->reset_map();
+    null_map_ = true;
     if(response_msg == nullptr || !future.valid()){
         RCLCPP_INFO(get_logger(), "Response Message is Null or Failed Server Process");
     }else{
@@ -229,6 +231,7 @@ void LangSamToMap::handle_process(
                 false, vis_mask_msg, color_msg_, response_msg->boxes)){
                 pub_vis_mask_->publish(vis_mask_msg);
             }
+            null_map_ = false;
         }
     }
     last_map_publish_t_ = this->get_clock()->now();

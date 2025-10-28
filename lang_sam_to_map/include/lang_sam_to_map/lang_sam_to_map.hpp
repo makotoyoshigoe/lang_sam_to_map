@@ -59,7 +59,7 @@ protected:
 
     std::shared_ptr<ros2_lang_sam_msgs::srv::TextSegmentation::Request> request_msg_;
     float time_interval_, distance_interval_, moved_distance_;
-    bool processing_, publish_pointcloud_, init_msg_receive_, init_request_, init_tf_, reset_moved_distance_;
+    bool processing_, publish_pointcloud_, init_msg_receive_, init_request_, init_tf_, reset_moved_distance_, null_map_;
     int node_freq_;
     rclcpp::Time last_map_publish_t_;
     std::string base_frame_id_, odom_frame_id_;
