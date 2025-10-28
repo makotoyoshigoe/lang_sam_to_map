@@ -25,6 +25,7 @@ void LangSamToMapServer::cb_get_map(
     nav_msgs::msg::OccupancyGrid lang_sam_map;
     lsa_map_generator_->get_map_msg(lang_sam_map);
     response->map = lang_sam_map;
+    response->success = !null_map_;
     RCLCPP_INFO(get_logger(), "Get Map Service was Called");
 }
 
