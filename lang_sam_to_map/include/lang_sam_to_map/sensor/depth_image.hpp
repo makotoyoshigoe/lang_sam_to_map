@@ -19,6 +19,7 @@ class DepthImage : public Image{
         sensor_msgs::msg::Image::ConstSharedPtr msg);
     void set_camera_model_from_msg(
         sensor_msgs::msg::CameraInfo::ConstSharedPtr msg);
+    int correct_depth_loss(int u, int v);
 
     private:
     cv::Mat cv_depth_;
