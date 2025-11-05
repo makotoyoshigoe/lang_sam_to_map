@@ -14,9 +14,10 @@ LSAMapGenerator::LSAMapGenerator(
     std::string frame_id, float resolution, 
     float max_valid_th, float min_valid_th, 
     float noise_contour_area_th, float connect_grid_th, 
-    float map_offset_x, float map_offset_y)
+    float map_offset_x, float map_offset_y, 
+    int outer_frame_th)
 : Map(frame_id, resolution, max_valid_th/resolution, max_valid_th/resolution, map_offset_x, map_offset_y), 
-  max_valid_th_(max_valid_th), min_valid_th_(min_valid_th), connect_grid_th_(connect_grid_th)
+  max_valid_th_(max_valid_th), min_valid_th_(min_valid_th), connect_grid_th_(connect_grid_th), outer_frame_th_(outer_frame_th)
 {
     mask_images_.reset(new MaskImages(noise_contour_area_th));
     depth_image_.reset(new DepthImage());
@@ -61,12 +62,13 @@ bool LSAMapGenerator::create_grid_map_from_contours(
         }
         RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Transform Pointcloud");
 
-        // Connect Occupied Grid
-        connect_occupied_grid();
+        connect_grids(occupied_pc_vec_); // Connect Occupied Grid
+        connect_grids(outer_pc_vec_); // Connect Outer Grid
         RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Connect Occupied Grid");
 
         // Point xy -> Grid xy
-        plot_occupied_and_raycast(true);
+        plot_grids_and_raycast(occupied_pc_vec_, 0); // Connect Occupied Grid
+        plot_grids_and_raycast(occupied_pc_vec_, 100); // Connect Occupied Grid
 	    RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Completed to create map");
         return true;
     }catch(std::exception & e){
@@ -78,30 +80,38 @@ bool LSAMapGenerator::create_grid_map_from_contours(
 void LSAMapGenerator::contours_to_3d_point(void)
 {
     occupied_pc_vec_.clear();
+    outer_pc_vec_.clear();
 
     std::vector<std::vector<cv::Point>> contours;
     mask_images_->get_contours(contours);
 
     // contours points and depth -> pcl
 	for(size_t i=0; i<contours.size(); ++i){
-        pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud(new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::PointCloud<pcl::PointXYZ>::Ptr occupied_pc(new pcl::PointCloud<pcl::PointXYZ>), outer_pc(new pcl::PointCloud<pcl::PointXYZ>);
         for(auto &p: contours[i]){
-            int rows, cols;
-            mask_images_->get_image_size(rows, cols);
-            if(p.y > rows - 10) continue;
             cv::Point3d xyz;
             if(!depth_image_->uv_to_xyz(p.x, p.y, xyz)) continue;
             pcl::PointXYZ p_xyz(xyz.x, xyz.y, std::min(xyz.z, (double)max_valid_th_));
-            pointcloud->points.emplace_back(p_xyz);
+            if(is_outer_frame(p)) outer_pc->points.emplace_back(p_xyz);
+            else occupied_pc->points.emplace_back(p_xyz);
 		}
-        occupied_pc_vec_.emplace_back(pointcloud);
+        if(occupied_pc->points.size() != 0) occupied_pc_vec_.emplace_back(occupied_pc);
+        if(outer_pc->points.size() != 0) outer_pc_vec_.emplace_back(outer_pc);
 	}
 }
 
-void LSAMapGenerator::connect_occupied_grid(void)
+bool LSAMapGenerator::is_outer_frame(cv::Point & p)
+{
+    int rows, cols;
+    mask_images_->get_image_size(rows, cols);
+    return (p.x < outer_frame_th_ || p.x > cols - outer_frame_th_ || p.y < outer_frame_th_ || p.y > rows - outer_frame_th_);
+}
+
+void LSAMapGenerator::connect_grids(
+    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> & pc_vec)
 {
     occupied_grid_.clear();
-    for(auto &pc: occupied_pc_vec_){
+    for(auto &pc: pc_vec){
         if(pc->points.size() == 0) continue;
         for(size_t i=0; i<pc->points.size()-1; ++i){
             if(hypot(pc->points[i].x-pc->points[i+1].x, pc->points[i].y-pc->points[i+1].y) > connect_grid_th_) continue;
@@ -132,25 +142,19 @@ void LSAMapGenerator::bresenham(
     }
 }
 
-void LSAMapGenerator::plot_occupied_and_raycast(bool mode)
+void LSAMapGenerator::plot_grids_and_raycast(
+    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> & pc_vec,
+    uint8_t value)
 {
-    if(mode){
-        for(auto & p: occupied_grid_){
-            bresenham_fill(p.x, p.y);
-            if(is_out_range(p.x, p.y)) continue;
-            data_[p.x][p.y] = 100;
-        }
-    }else{
-        pcl::PointCloud<pcl::PointXYZ>::iterator pt;
-        for(auto &pc: occupied_pc_vec_){
-            for (pt=pc->points.begin(); pt < pc->points.end(); pt++){
-                bresenham_fill(
-                    static_cast<int>(((*pt).x - ox_) / resolution_), 
-                    static_cast<int>(((*pt).y - oy_) / resolution_));
-                int ix, iy;
-                if(!xy_to_index((*pt).x, (*pt).y, ix, iy)) continue;
-                data_[ix][iy] = 100;
-            }
+    pcl::PointCloud<pcl::PointXYZ>::iterator pt;
+    for(auto &pc: pc_vec){
+        for (pt=pc->points.begin(); pt < pc->points.end(); pt++){
+            bresenham_fill(
+                static_cast<int>(((*pt).x - ox_) / resolution_), 
+                static_cast<int>(((*pt).y - oy_) / resolution_));
+            int ix, iy;
+            if(!xy_to_index((*pt).x, (*pt).y, ix, iy)) continue;
+            data_[ix][iy] = value;
         }
     }
 }

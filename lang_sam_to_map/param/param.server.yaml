@@ -26,3 +26,4 @@ lang_sam_to_map_server:
     odom_frame_id: "odom"
     noise_contour_area_threshold: 1000.0
     connect_grid_threshold: 1.0
+    outer_frame_threshold: 10

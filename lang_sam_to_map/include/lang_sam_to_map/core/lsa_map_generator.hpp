@@ -16,7 +16,8 @@ class LSAMapGenerator : public lang_sam_to_map::Map{
         std::string frame_id, float resolution, 
         float max_valid_th, float min_valid_th, 
         float noise_contour_area_th, float connect_grid_th, 
-        float map_offset_x, float map_offset_y);
+        float map_offset_x, float map_offset_y,
+        int outer_frame_th);
     ~LSAMapGenerator();
     void set_origin(float ox, float oy, geometry_msgs::msg::Quaternion oq);
     void update_image_infos(
@@ -26,8 +27,11 @@ class LSAMapGenerator : public lang_sam_to_map::Map{
     bool create_grid_map_from_contours(
         const tf2::Transform & tf_camera_to_base);
     void contours_to_3d_point(void);
-    void connect_occupied_grid(void);
-    void plot_occupied_and_raycast(bool mode);
+    bool is_outer_frame(cv::Point & p);
+    void connect_grids(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> & pc_vec);
+    void plot_grids_and_raycast(
+        std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> & pc_vec,
+        uint8_t value);
     void bresenham(int x_s, int y_s, int x_e, int y_e);
     void bresenham_fill(int x_e, int y_e);
     bool get_visualize_msg(
@@ -40,9 +44,10 @@ class LSAMapGenerator : public lang_sam_to_map::Map{
     std::vector<sensor_msgs::msg::Image> masks_msg_vec_;
     std::unique_ptr<MaskImages> mask_images_;
     std::unique_ptr<DepthImage> depth_image_;
-    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> occupied_pc_vec_;
+    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> occupied_pc_vec_, outer_pc_vec_;
     float max_valid_th_, min_valid_th_, connect_grid_th_;
     std::vector<Grid> occupied_grid_;
+    int outer_frame_th_;
 };
 
 } // namespace lang_sam_to_map
