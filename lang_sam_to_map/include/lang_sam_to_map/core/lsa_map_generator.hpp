@@ -27,12 +27,18 @@ class LSAMapGenerator : public lang_sam_to_map::Map{
     bool create_grid_map_from_contours(
         const tf2::Transform & tf_camera_to_base);
     void contours_to_3d_point(void);
-    bool is_outer_frame(cv::Point & p);
-    void connect_grids(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> & pc_vec);
-    void plot_grids_and_raycast(
+    void transform_pc(
         std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> & pc_vec,
-        uint8_t value);
-    void bresenham(int x_s, int y_s, int x_e, int y_e);
+        const tf2::Transform & tf_camera_to_base);
+    bool is_outer_frame(cv::Point & p);
+    void connect_grids(
+        std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> & pc_vec, 
+        std::vector<Grid> & grid_vec);
+    void plot_grids_and_raycast(
+        std::vector<Grid> & grid_vec, uint8_t value);
+    void bresenham(
+        std::vector<Grid> & grid_vec, 
+        int x_s, int y_s, int x_e, int y_e);
     void bresenham_fill(int x_e, int y_e);
     bool get_visualize_msg(
         bool raw, 
@@ -46,7 +52,7 @@ class LSAMapGenerator : public lang_sam_to_map::Map{
     std::unique_ptr<DepthImage> depth_image_;
     std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> occupied_pc_vec_, outer_pc_vec_;
     float max_valid_th_, min_valid_th_, connect_grid_th_;
-    std::vector<Grid> occupied_grid_;
+    std::vector<Grid> occupied_grid_, outer_grid_;
     int outer_frame_th_;
 };
 

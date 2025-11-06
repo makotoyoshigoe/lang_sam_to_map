@@ -53,22 +53,17 @@ bool LSAMapGenerator::create_grid_map_from_contours(
         RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Completed to create pointcloud");
 
         // Transform coordinate camera frame->odom
-        for(auto & pc: occupied_pc_vec_){
-            pcl_ros::transformPointCloud(*pc, *pc, tf_camera_to_base);
-            for(auto & p: pc->points){
-                p.x += ox_ + map_offset_x_;
-                p.y += oy_ + map_offset_y_;
-            }
-        }
+        transform_pc(occupied_pc_vec_, tf_camera_to_base);
+        transform_pc(outer_pc_vec_, tf_camera_to_base);
         RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Transform Pointcloud");
 
-        connect_grids(occupied_pc_vec_); // Connect Occupied Grid
-        connect_grids(outer_pc_vec_); // Connect Outer Grid
+        connect_grids(occupied_pc_vec_, occupied_grid_); // Connect Occupied Grid
+        connect_grids(outer_pc_vec_, outer_grid_);    // Connect Outer Grid
         RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Connect Occupied Grid");
 
         // Point xy -> Grid xy
-        plot_grids_and_raycast(occupied_pc_vec_, 0); // Connect Occupied Grid
-        plot_grids_and_raycast(occupied_pc_vec_, 100); // Connect Occupied Grid
+        plot_grids_and_raycast(occupied_grid_, 100); // Connect Occupied Grid
+        plot_grids_and_raycast(outer_grid_, 0); // Connect Outer Grid
 	    RCLCPP_INFO(rclcpp::get_logger("lang_sam_to_map"), "Completed to create map");
         return true;
     }catch(std::exception & e){
@@ -100,6 +95,19 @@ void LSAMapGenerator::contours_to_3d_point(void)
 	}
 }
 
+void LSAMapGenerator::transform_pc(
+    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> & pc_vec,
+    const tf2::Transform & tf_camera_to_base)
+{
+    for(auto & pc: pc_vec){
+        pcl_ros::transformPointCloud(*pc, *pc, tf_camera_to_base);
+        for(auto & p: pc->points){
+            p.x += ox_ + map_offset_x_;
+            p.y += oy_ + map_offset_y_;
+        }
+    }
+}
+
 bool LSAMapGenerator::is_outer_frame(cv::Point & p)
 {
     int rows, cols;
@@ -108,14 +116,16 @@ bool LSAMapGenerator::is_outer_frame(cv::Point & p)
 }
 
 void LSAMapGenerator::connect_grids(
-    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> & pc_vec)
+    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> & pc_vec, 
+    std::vector<Grid> & grid_vec) 
 {
-    occupied_grid_.clear();
+    grid_vec.clear();
     for(auto &pc: pc_vec){
         if(pc->points.size() == 0) continue;
         for(size_t i=0; i<pc->points.size()-1; ++i){
             if(hypot(pc->points[i].x-pc->points[i+1].x, pc->points[i].y-pc->points[i+1].y) > connect_grid_th_) continue;
             bresenham(
+                grid_vec,
                 static_cast<int>((pc->points[i].x - ox_) / resolution_), 
                 static_cast<int>((pc->points[i].y - oy_) / resolution_), 
                 static_cast<int>((pc->points[i+1].x - ox_) / resolution_), 
@@ -125,6 +135,7 @@ void LSAMapGenerator::connect_grids(
 }
 
 void LSAMapGenerator::bresenham(
+    std::vector<Grid> & grid_vec,
     int x_s, int y_s, int x_e, int y_e)
 {
     Grid p0{x_s, y_s}, p1{x_e, y_e};
@@ -134,7 +145,7 @@ void LSAMapGenerator::bresenham(
     int err = d.x - d.y;
 
     while (true) {
-        occupied_grid_.emplace_back(Grid{p0.x, p0.y});
+        grid_vec.emplace_back(Grid{p0.x, p0.y});
         if (p0.x == p1.x && p0.y == p1.y) break;
         int e2 = 2 * err;
         if (e2 > -d.y) {err -= d.y; p0.x += s.x;}
@@ -143,20 +154,25 @@ void LSAMapGenerator::bresenham(
 }
 
 void LSAMapGenerator::plot_grids_and_raycast(
-    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> & pc_vec,
+    std::vector<Grid> & grid_vec,
     uint8_t value)
 {
     pcl::PointCloud<pcl::PointXYZ>::iterator pt;
-    for(auto &pc: pc_vec){
-        for (pt=pc->points.begin(); pt < pc->points.end(); pt++){
-            bresenham_fill(
-                static_cast<int>(((*pt).x - ox_) / resolution_), 
-                static_cast<int>(((*pt).y - oy_) / resolution_));
-            int ix, iy;
-            if(!xy_to_index((*pt).x, (*pt).y, ix, iy)) continue;
-            data_[ix][iy] = value;
-        }
+    for(auto & p: grid_vec){
+        bresenham_fill(p.x, p.y);
+        if(is_out_range(p.x, p.y)) continue;
+        data_[p.x][p.y] = value;
     }
+    // for(auto &pc: pc_vec){
+    //     for (pt=pc->points.begin(); pt < pc->points.end(); pt++){
+    //         bresenham_fill(
+    //             static_cast<int>(((*pt).x - ox_) / resolution_), 
+    //             static_cast<int>(((*pt).y - oy_) / resolution_));
+    //         int ix, iy;
+    //         if(!xy_to_index((*pt).x, (*pt).y, ix, iy)) continue;
+    //         data_[ix][iy] = value;
+    //     }
+    // }
 }
 
 void LSAMapGenerator::bresenham_fill(int x_e, int y_e)
