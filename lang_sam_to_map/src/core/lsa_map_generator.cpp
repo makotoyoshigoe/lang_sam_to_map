@@ -163,16 +163,6 @@ void LSAMapGenerator::plot_grids_and_raycast(
         if(is_out_range(p.x, p.y)) continue;
         data_[p.x][p.y] = value;
     }
-    // for(auto &pc: pc_vec){
-    //     for (pt=pc->points.begin(); pt < pc->points.end(); pt++){
-    //         bresenham_fill(
-    //             static_cast<int>(((*pt).x - ox_) / resolution_), 
-    //             static_cast<int>(((*pt).y - oy_) / resolution_));
-    //         int ix, iy;
-    //         if(!xy_to_index((*pt).x, (*pt).y, ix, iy)) continue;
-    //         data_[ix][iy] = value;
-    //     }
-    // }
 }
 
 void LSAMapGenerator::bresenham_fill(int x_e, int y_e)
