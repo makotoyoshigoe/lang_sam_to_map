@@ -15,12 +15,12 @@ LSAMapGenerator::LSAMapGenerator(
     float max_valid_th, float min_valid_th, 
     float noise_contour_area_th, float connect_grid_th, 
     float map_offset_x, float map_offset_y, 
-    int outer_frame_th)
+    int outer_frame_th, uint8_t depth_correct_range)
 : Map(frame_id, resolution, max_valid_th/resolution, max_valid_th/resolution, map_offset_x, map_offset_y), 
   max_valid_th_(max_valid_th), min_valid_th_(min_valid_th), connect_grid_th_(connect_grid_th), outer_frame_th_(outer_frame_th)
 {
     mask_images_.reset(new MaskImages(noise_contour_area_th));
-    depth_image_.reset(new DepthImage());
+    depth_image_.reset(new DepthImage(min_valid_th, depth_correct_range));
 }
 
 void LSAMapGenerator::set_origin(float ox, float oy, geometry_msgs::msg::Quaternion oq)

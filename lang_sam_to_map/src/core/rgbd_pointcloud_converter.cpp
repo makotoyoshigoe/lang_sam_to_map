@@ -7,18 +7,10 @@
 namespace lang_sam_to_map
 {
 RGBDPointcloudConverter::RGBDPointcloudConverter(
-    sensor_msgs::msg::Image::ConstSharedPtr color_msg,
-    sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 
-    sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info)
-{
-    rgbd_image_.reset(new RGBDImage(color_msg, depth_msg, camera_info));
-}
-
-RGBDPointcloudConverter::RGBDPointcloudConverter(
-        float vg_leaf_size, float max_depth_th, float min_depth_th)
+        float vg_leaf_size, float max_depth_th, float min_depth_th, uint8_t depth_correct_range)
 : max_depth_th_(max_depth_th), min_depth_th_(min_depth_th)
 {
-    rgbd_image_.reset(new RGBDImage());
+    rgbd_image_.reset(new RGBDImage(min_depth_th, depth_correct_range));
     voxel_grid_filter_.reset(new pcl::VoxelGrid<pcl::PointXYZRGB>);
     voxel_grid_filter_->setLeafSize(vg_leaf_size, vg_leaf_size, vg_leaf_size);
 }

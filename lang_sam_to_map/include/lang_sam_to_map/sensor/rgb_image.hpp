@@ -9,7 +9,6 @@ namespace lang_sam_to_map{
 class RGBImage : public Image
 {
     public:
-    RGBImage(sensor_msgs::msg::Image::ConstSharedPtr msg);
     RGBImage(void);
     ~RGBImage();
     cv::Vec3b get_pixel_color(int u, int v);

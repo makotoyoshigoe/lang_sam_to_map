@@ -46,6 +46,7 @@ void LangSamToMap::declare_param(void)
     this->declare_parameter("noise_contour_area_threshold", 10.0);
     this->declare_parameter("connect_grid_threshold", 7.0);
     this->declare_parameter("outer_frame_threshold", 10);
+    this->declare_parameter("depth_correct_range", 5);
 }
 
 void LangSamToMap::init_param(void)
@@ -65,9 +66,12 @@ void LangSamToMap::init_param(void)
     float noise_contour_area_th = this->get_parameter("noise_contour_area_threshold").as_double();
     float connect_grid_th = this->get_parameter("connect_grid_threshold").as_double();
     float outer_frame_th = this->get_parameter("outer_frame_threshold").as_int();
-    rgbd_pc_converter_.reset(new RGBDPointcloudConverter(vg_leaf_size, max_valid_th, min_valid_th));
+    uint8_t depth_correct_range = this->get_parameter("depth_correct_range").as_int();
+    rgbd_pc_converter_.reset(new RGBDPointcloudConverter(
+        vg_leaf_size, max_valid_th, min_valid_th, depth_correct_range));
     lsa_map_generator_.reset(new LSAMapGenerator(odom_frame_id_, map_resolution,
-        max_valid_th, min_valid_th, noise_contour_area_th, connect_grid_th, map_offset_x, map_offset_y, outer_frame_th));
+        max_valid_th, min_valid_th, noise_contour_area_th, connect_grid_th, 
+        map_offset_x, map_offset_y, outer_frame_th, depth_correct_range));
 }
 
 void LangSamToMap::init_pubsub(void)

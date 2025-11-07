@@ -11,7 +11,6 @@ namespace lang_sam_to_map{
 class MaskImages : public Image
 {
     public:
-    MaskImages(const std::vector<sensor_msgs::msg::Image> masks_msg_vec);
     MaskImages(float noise_contour_area_th_);
     ~MaskImages();
     void pre_process(const std::vector<sensor_msgs::msg::Image> masks_msg_vec);

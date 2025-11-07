@@ -5,11 +5,6 @@
 #include "lang_sam_to_map/sensor/mask_images.hpp"
 
 namespace lang_sam_to_map{
-MaskImages::MaskImages(const std::vector<sensor_msgs::msg::Image> masks_msg_vec) : Image()
-{
-    pre_process(masks_msg_vec);
-}
-
 MaskImages::MaskImages(float noise_contour_area_th)
 : noise_contour_area_th_(noise_contour_area_th)
 {}

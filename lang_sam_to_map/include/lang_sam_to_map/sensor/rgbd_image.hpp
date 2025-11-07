@@ -10,11 +10,7 @@ namespace lang_sam_to_map{
 class RGBDImage : public lang_sam_to_map::RGBImage, public lang_sam_to_map::DepthImage
 {
     public:
-    RGBDImage(
-        sensor_msgs::msg::Image::ConstSharedPtr color_msg,
-        sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 
-        sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info_msg);
-    RGBDImage(void);
+    RGBDImage(float min_depth_th, uint8_t depth_correct_range);
     ~RGBDImage();
     
     private:

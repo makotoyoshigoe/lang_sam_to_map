@@ -9,10 +9,7 @@
 namespace lang_sam_to_map{
 class DepthImage : public Image{
     public:
-    DepthImage(
-        sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 
-        sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info_msg);
-    DepthImage(void);
+    DepthImage(float min_depth_th, uint8_t depth_correct_range);
     ~DepthImage();
     bool uv_to_xyz(int u, int v, cv::Point3d & xyz);
     void set_depth_image_from_msg(
@@ -22,6 +19,8 @@ class DepthImage : public Image{
     int correct_depth_loss(int u, int v);
 
     private:
+    float min_depth_th_;
+    uint8_t depth_correct_range_;
     cv::Mat cv_depth_;
     image_geometry::PinholeCameraModel cam_model_;
 };

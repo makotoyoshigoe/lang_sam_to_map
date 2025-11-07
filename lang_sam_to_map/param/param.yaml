@@ -15,7 +15,7 @@ lang_sam_to_map:
         leaf_size: 0.05
     depth: 
       valid_threshold:
-        min: 1.5
+        min: 0.3 
         max: 20.0
     map:
       offset:
@@ -27,3 +27,4 @@ lang_sam_to_map:
     noise_contour_area_threshold: 1000.0
     connect_grid_threshold: 1.0
     outer_frame_threshold: 10
+    depth_correct_range: 5

@@ -6,16 +6,8 @@
 
 namespace lang_sam_to_map{
 
-RGBDImage::RGBDImage(
-    sensor_msgs::msg::Image::ConstSharedPtr color_msg,
-    sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 
-    sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info_msg)
-: RGBImage(color_msg), DepthImage(depth_msg, camera_info_msg)
-{
-}
-
-RGBDImage::RGBDImage(void)
-: RGBImage(), DepthImage()
+RGBDImage::RGBDImage(float min_dehth_th, uint8_t depth_correct_range)
+: RGBImage(), DepthImage(min_dehth_th, depth_correct_range)
 {
 }
 RGBDImage::~RGBDImage(){}

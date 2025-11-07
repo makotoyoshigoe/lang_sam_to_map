@@ -12,11 +12,7 @@ namespace lang_sam_to_map{
 class RGBDPointcloudConverter{
     public:
     RGBDPointcloudConverter(
-        sensor_msgs::msg::Image::ConstSharedPtr color_msg,
-        sensor_msgs::msg::Image::ConstSharedPtr depth_msg, 
-        sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info);
-    RGBDPointcloudConverter(
-        float vg_leaf_size, float max_depth_th, float min_depth_th);
+        float vg_leaf_size, float max_depth_th, float min_depth_th, uint8_t depth_correct_range);
     ~RGBDPointcloudConverter();
     void update_images_info(
         sensor_msgs::msg::Image::ConstSharedPtr color_msg, 

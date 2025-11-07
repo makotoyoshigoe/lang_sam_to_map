@@ -17,7 +17,7 @@ class LSAMapGenerator : public lang_sam_to_map::Map{
         float max_valid_th, float min_valid_th, 
         float noise_contour_area_th, float connect_grid_th, 
         float map_offset_x, float map_offset_y,
-        int outer_frame_th);
+        int outer_frame_th, uint8_t depth_correct_range);
     ~LSAMapGenerator();
     void set_origin(float ox, float oy, geometry_msgs::msg::Quaternion oq);
     void update_image_infos(

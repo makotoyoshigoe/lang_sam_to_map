@@ -8,12 +8,6 @@ namespace lang_sam_to_map{
 
 RGBImage::RGBImage(void) : Image(){}
 
-RGBImage::RGBImage(sensor_msgs::msg::Image::ConstSharedPtr msg)
-: Image()
-{
-    set_color_image_from_msg(msg);
-}
-
 cv::Vec3b RGBImage::get_pixel_color(int u, int v)
 {
     return cv_color_.at<cv::Vec3b>(v, u);
