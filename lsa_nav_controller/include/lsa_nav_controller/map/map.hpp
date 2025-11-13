@@ -35,8 +35,8 @@ class Map{
     std::string get_map_frame_id(void);
     bool is_out_range(Grid grid);
     Grid point_to_grid(float x, float y);
-
-    protected:
+    
+    // member variables
     std::string frame_id_;
     geometry_msgs::msg::Pose2D p_org_;
     uint32_t width_, height_;

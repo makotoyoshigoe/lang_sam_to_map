@@ -11,22 +11,7 @@ Map::Map(void)
 
 }
 
-void Map::update_map(nav_msgs::msg::OccupancyGrid::ConstSharedPtr map)
-{
-    nav_msgs::msg::OccupancyGrid msg = *map;
-    frame_id_ = msg.header.frame_id;
-    height_ = msg.info.height;
-    width_ = msg.info.width;
-    resolution_ = msg.info.resolution;
-    p_org_.x = msg.info.origin.position.x; 
-    p_org_.y = msg.info.origin.position.y; 
-    p_org_.theta = tf2::getYaw(msg.info.origin.orientation);
-    p_org_q_ = msg.info.origin.orientation;
-    if(height_ != data_.size() && width_ != data_.size()) data_.assign(height_, std::vector<int8_t>(width_, 0));
-    cvt_1d_to_2d(msg.data);
-    init_map_receive_ = true;
-    RCLCPP_INFO(rclcpp::get_logger("lsa_nav_controller"), "Update Map");
-}
+
 
 void Map::fill_bottom(void)
 {
