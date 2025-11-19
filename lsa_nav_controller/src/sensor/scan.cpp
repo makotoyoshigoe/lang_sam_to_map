@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Makoto Yoshigoe myoshigo0127@gmail.com 
 // SPDX-License-Identifier: Apache-2.0
 
+#include <cmath>
+
 #include "lsa_nav_controller/sensor/scan.hpp"
 
 namespace lsa_nav_controller
@@ -25,26 +27,31 @@ void Scan::set_detected_lasers(void)
         float end_angle = start_angle + division_angle;
         DetectedLaser dl;
         dl.start = start_angle;
-        dl.ent = end_angle;
+        dl.end = end_angle;
         detected_lasers_.emplace_back(dl);
     }
 }
 
-Laser Scan::get_open_laser(float odom_t, float lidar_t)
+Laser Scan::get_open_laser(void)
 {
     Laser open_laser;
     open_laser.direction = 0.0f;
     open_laser.distance = 0.0f; // initialize with a value larger than max range
 
     for(auto detected_laser : detected_lasers_){
-        Laser avg_laser = get_laser_average(detected_laser.start, detected_laser.ent);
+        Laser avg_laser = get_laser_average(detected_laser.start, detected_laser.end);
         float distance = avg_laser.distance;
         if(distance > open_laser.distance){
             open_laser.direction = avg_laser.direction;
             open_laser.distance = distance;
+        }else if(distance == open_laser.distance){
+            // if same distance, choose the one closer to 0 rad
+            if(fabsf(avg_laser.direction) < fabsf(open_laser.direction)){
+                open_laser.direction = avg_laser.direction;
+                open_laser.distance = distance;
+            }
         }
     }
-    open_laser.direction += odom_t + lidar_t;
     return open_laser;
 }
 
@@ -67,12 +74,42 @@ Laser Scan::get_laser_average(float start_angle, float end_angle)
     return avg_laser;
 }
 
+void Scan::set_lidar_pose(
+    geometry_msgs::msg::Pose2D lidar_pose){lidar_pose_ = lidar_pose;}
+
 size_t Scan::rad_to_index(float rad)
 {
     if(rad < angle_min_ || rad > angle_max_) return static_cast<size_t>(-1);
     return static_cast<size_t>((rad - angle_min_) / angle_increment_);
 }
 
+void Scan::get_exceed_threshold_lasers(
+    float threshold, 
+    std::vector<LaserXY> & exceed_lasers) 
+{
+    exceed_lasers.clear();
+    for(size_t i = 0; i < ranges_.size(); ++i){
+        float distance = ranges_[i];
+        if(distance > threshold){
+            float t = angle_min_ + i * angle_increment_;
+            float r = distance;
+            LaserXY laser;
+            laser.x = distance * cosf(t);
+            laser.y = distance * sinf(t);
+            exceed_lasers.emplace_back(cvt_lidar_to_robot(laser));
+        }
+    }
+}
+
+LaserXY Scan::cvt_lidar_to_robot(LaserXY laser)
+{
+    float rx = laser.x;
+    float ry = laser.y;
+    float t = lidar_pose_.theta;
+    float x = lidar_pose_.x + cosf(t) * rx - sinf(t) * ry;
+    float y = lidar_pose_.y + sinf(t) * rx + cosf(t) * ry;
+    return {x, y};
+}
 Scan::~Scan(){}
 
 } // namespace lsa_nav_controller

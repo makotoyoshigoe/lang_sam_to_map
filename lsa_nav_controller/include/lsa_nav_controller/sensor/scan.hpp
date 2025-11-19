@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <geometry_msgs/msg/pose2_d.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 
 namespace lsa_nav_controller
@@ -16,7 +17,13 @@ struct Laser
 struct DetectedLaser
 {
     float start; // in radians
-    float ent;
+    float end;
+};
+
+struct LaserXY
+{
+    float x;
+    float y;
 };
 
 class Scan{
@@ -27,9 +34,13 @@ class Scan{
 
     // methods
     void set_detected_lasers(void);
-    Laser get_open_laser(float odom_t, float lidar_t);
+    Laser get_open_laser(void);
     Laser get_laser_average(float start_angle, float end_angle);
+    void set_lidar_pose(geometry_msgs::msg::Pose2D lidar_pose);
     size_t rad_to_index(float rad);
+    void get_exceed_threshold_lasers(float threshold, 
+        std::vector<LaserXY> & exceed_lasers);
+    LaserXY cvt_lidar_to_robot(LaserXY laser);
 
     // public member variables
     float angle_min_;
@@ -45,6 +56,7 @@ class Scan{
     float detect_angle_end_; 
     int detect_angle_division_num_;
     std::vector<DetectedLaser> detected_lasers_;
+    geometry_msgs::msg::Pose2D lidar_pose_;
 };
 
 } // namespace lsa_nav_controller

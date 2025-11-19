@@ -11,7 +11,7 @@
 #include <tf2_ros/transform_listener.h>
 
 #include "lsa_nav_controller/core/road_scan_creator.hpp"
-#include "lsa_nav_controller/core/controller.hpp"
+// #include "lsa_nav_controller/core/controller.hpp"
 #include "lsa_nav_controller/core/potential_controller.hpp"
 
 namespace lsa_nav_controller
@@ -44,7 +44,7 @@ class LsaNavController : public rclcpp::Node{
 
     // Core Components
     std::unique_ptr<RoadScanCreator> road_scan_creator_;
-    std::unique_ptr<Controller> controller_;
+    // std::unique_ptr<Controller> controller_;
     std::unique_ptr<PotentialController> potential_controller_;
     
     // TF2

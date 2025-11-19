@@ -31,7 +31,7 @@ void LsaNavController::declare_param(void)
     declare_parameter("odom_frame_id", "odom");
     declare_parameter("controller.linear_vel.max", 0.2);
     declare_parameter("controller.linear_vel.min", 0.0);
-    declare_parameter("controller.angular_vel.max", 0.5);
+    declare_parameter("controller.angular_vel.max", 1.0);
     declare_parameter("controller.angular_vel.min", -0.5);
     declare_parameter("controller.linear_acc_th", 0.05);
     declare_parameter("controller.linear_dec_th", 0.05);
@@ -43,10 +43,11 @@ void LsaNavController::declare_param(void)
     declare_parameter("potential.critical_distance", 3.0);
     declare_parameter("potential.repulsive_gain_map", 1.0);
     declare_parameter("potential.repulsive_gain_scan", 1.0);
-    declare_parameter("potential.attractive_gain", 1.0);
+    declare_parameter("potential.attractive_gain", 3.0);
     declare_parameter("potential.detect_angle_start", -45.0);
     declare_parameter("potential.detect_angle_end", 45.0);
     declare_parameter("potential.detect_angle_division_num", 5);
+    declare_parameter("potential.repulsive_min_distance", 0.25);
 }
 
 void LsaNavController::init_param(void)
@@ -72,10 +73,10 @@ void LsaNavController::init_param(void)
     float ki = get_parameter("controller.ki").as_double();
     float kd = get_parameter("controller.kd").as_double();
     // road_scan_creator_.reset(new RoadScanCreator(max_angle, min_angle, angle_increment, max_range, min_range, front_angle_abs));
-    controller_.reset(new Controller(
-        lin_max_vel, lin_min_vel, ang_max_vel, ang_min_vel, 
-        lin_acc_th, lin_dec_th, ang_acc_th, ang_dec_th, 
-        kp, ki, kd, 1 / (float)control_freq_));
+    //controller_.reset(new Controller(
+    //    lin_max_vel, lin_min_vel, ang_max_vel, ang_min_vel, 
+    //    lin_acc_th, lin_dec_th, ang_acc_th, ang_dec_th, 
+    //    kp, ki, kd, 1 / (float)control_freq_));
     float critical_distance = get_parameter("potential.critical_distance").as_double(); 
     float repulsive_gain_map = get_parameter("potential.repulsive_gain_map").as_double();
     float repulsive_gain_scan = get_parameter("potential.repulsive_gain_scan").as_double();
@@ -83,10 +84,12 @@ void LsaNavController::init_param(void)
     float detect_angle_start = get_parameter("potential.detect_angle_start").as_double() * M_PI / 180.0;
     float detect_angle_end = get_parameter("potential.detect_angle_end").as_double() * M_PI / 180.0;
     int detect_angle_division_num = get_parameter("potential.detect_angle_division_num").as_int();
+    float min_distance = get_parameter("potential.repulsive_min_distance").as_double();
     potential_controller_.reset(new PotentialController(
         critical_distance, 
         repulsive_gain_map, repulsive_gain_scan, attractive_gain, 
-        detect_angle_start, detect_angle_end, detect_angle_division_num));
+        detect_angle_start, detect_angle_end, detect_angle_division_num, 
+        min_distance, lin_max_vel, ang_max_vel));
 }
 
 void LsaNavController::init_pubsub(void)
@@ -116,14 +119,13 @@ void LsaNavController::cb_scan(sensor_msgs::msg::LaserScan::ConstSharedPtr msg)
 void LsaNavController::main_loop(void)
 {
     if(!init_tf_) init_tf();
-    if(!receive_scan_ || !receive_map_) return;
-    geometry_msgs::msg::Pose2D map_to_base_pose, base_to_scan_pose;
-    if(!get_tf_pose(base_frame_id_, odom_frame_id_, map_to_base_pose)) return;
-    if(!get_tf_pose(scan_frame_id_, base_frame_id_, base_to_scan_pose)) return;
-    // publish_road_scan();
-    // nav_msgs::msg::OccupancyGrid map;
-    // road_scan_creator_->get_map_msg(map);
-    // pub_map_test_->publish(map);
+    //if(!receive_scan_ || !receive_map_) return;
+    if(!receive_scan_) return;
+    geometry_msgs::msg::Pose2D odom_to_base_pose, base_to_lidar_pose;
+    if(!get_tf_pose(base_frame_id_, odom_frame_id_, odom_to_base_pose)) return;
+    if(!get_tf_pose(scan_frame_id_, odom_frame_id_, base_to_lidar_pose)) return;
+    CmdVel cmd_vel = potential_controller_->get_cmd_vel(odom_to_base_pose, base_to_lidar_pose);
+    publish_cmd_vel(cmd_vel);
 }
 
 void LsaNavController::init_tf(void)
@@ -151,13 +153,13 @@ bool LsaNavController::get_tf_pose(
     geometry_msgs::msg::Pose2D & pose2d)
 {
     geometry_msgs::msg::PoseStamped ident;
-	ident.header.frame_id = source_frame;
+	ident.header.frame_id = target_frame;
 	ident.header.stamp = rclcpp::Time(0);
 	tf2::toMsg(tf2::Transform::getIdentity(), ident.pose);
 
 	geometry_msgs::msg::PoseStamped pose;
 	try {
-		this->tf_buffer_->transform(ident, pose, target_frame);
+		this->tf_buffer_->transform(ident, pose, source_frame);
 	} catch (tf2::TransformException & e) {
 		RCLCPP_WARN(
 		  get_logger(), "Failed to compute odom pose, skipping scan (%s)", e.what());
@@ -173,6 +175,7 @@ int LsaNavController::get_loop_freq(void){return control_freq_;}
 
 void LsaNavController::publish_cmd_vel(CmdVel & cmd_vel)
 {
+    // Convert Force to CmdVel
     geometry_msgs::msg::Twist msg;
     msg.angular.z = cmd_vel.angular_vel;
     msg.linear.x = cmd_vel.linear_vel;

@@ -35,6 +35,7 @@ class Map{
     std::string get_map_frame_id(void);
     bool is_out_range(Grid grid);
     Grid point_to_grid(float x, float y);
+    void set_odom_pose(geometry_msgs::msg::Pose2D odom_pose);
     
     // member variables
     std::string frame_id_;
@@ -44,6 +45,7 @@ class Map{
     std::vector<std::vector<int8_t>> data_;
     bool init_map_receive_;
     geometry_msgs::msg::Quaternion p_org_q_;
+    geometry_msgs::msg::Pose2D odom_pose_;
 };
     
 } // namespace lsa_nav_controller

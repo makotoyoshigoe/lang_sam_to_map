@@ -11,8 +11,6 @@ Map::Map(void)
 
 }
 
-
-
 void Map::fill_bottom(void)
 {
     for(uint32_t i=0; i<width_; ++i) data_[i][0] = 0;
@@ -59,7 +57,8 @@ void Map::cvt_1d_to_2d(std::vector<int8_t> & data)
     }
 }
 
-bool Map::is_out_range(Grid grid){return grid.x < 0 || grid.x >= width_ || grid.y < 0 || grid.y >= height_;}
+bool Map::is_out_range(Grid grid)
+{return grid.x < 0 || grid.x >= width_ || grid.y < 0 || grid.y >= height_;}
 
 Grid Map::point_to_grid(float odom_x, float odom_y)
 {   
@@ -73,6 +72,9 @@ Grid Map::point_to_grid(float odom_x, float odom_y)
     Grid g{ix, iy};
     return g;
 }
+
+void Map::set_odom_pose(geometry_msgs::msg::Pose2D odom_pose)
+{odom_pose_ = odom_pose;}
 
 Map::~Map(){}
 
