@@ -39,7 +39,8 @@ class PotentialController{
         int detect_angle_division_num,
         float min_distance, 
         float max_linear_vel,
-        float max_angular_vel);
+        float max_angular_vel, 
+        float sigma);
     ~PotentialController();
 
     // setters
@@ -66,6 +67,8 @@ class PotentialController{
 
     // parameters
     float critical_distance_;
+    float repulsive_gain_;
+    float sigma_;
     float repulsive_gain_map_;
     float repulsive_gain_scan_;
     float attractive_gain_;

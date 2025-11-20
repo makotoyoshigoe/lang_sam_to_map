@@ -40,7 +40,7 @@ void LsaNavController::declare_param(void)
     declare_parameter("controller.kp", 1.);
     declare_parameter("controller.ki", 0.);
     declare_parameter("controller.kd", 0.);
-    declare_parameter("potential.critical_distance", 3.0);
+    declare_parameter("potential.critical_distance", 0.4);
     declare_parameter("potential.repulsive_gain_map", 1.0);
     declare_parameter("potential.repulsive_gain_scan", 1.0);
     declare_parameter("potential.attractive_gain", 3.0);
@@ -48,6 +48,7 @@ void LsaNavController::declare_param(void)
     declare_parameter("potential.detect_angle_end", 45.0);
     declare_parameter("potential.detect_angle_division_num", 5);
     declare_parameter("potential.repulsive_min_distance", 0.25);
+    declare_parameter("potential.sigma", 0.3);
 }
 
 void LsaNavController::init_param(void)
@@ -85,11 +86,12 @@ void LsaNavController::init_param(void)
     float detect_angle_end = get_parameter("potential.detect_angle_end").as_double() * M_PI / 180.0;
     int detect_angle_division_num = get_parameter("potential.detect_angle_division_num").as_int();
     float min_distance = get_parameter("potential.repulsive_min_distance").as_double();
+    float sigma = get_parameter("potential.sigma").as_double();
     potential_controller_.reset(new PotentialController(
         critical_distance, 
         repulsive_gain_map, repulsive_gain_scan, attractive_gain, 
         detect_angle_start, detect_angle_end, detect_angle_division_num, 
-        min_distance, lin_max_vel, ang_max_vel));
+        min_distance, lin_max_vel, ang_max_vel, sigma));
 }
 
 void LsaNavController::init_pubsub(void)
@@ -124,6 +126,8 @@ void LsaNavController::main_loop(void)
     geometry_msgs::msg::Pose2D odom_to_base_pose, base_to_lidar_pose;
     if(!get_tf_pose(base_frame_id_, odom_frame_id_, odom_to_base_pose)) return;
     if(!get_tf_pose(scan_frame_id_, odom_frame_id_, base_to_lidar_pose)) return;
+    // Judge whether open place is available
+    // if
     CmdVel cmd_vel = potential_controller_->get_cmd_vel(odom_to_base_pose, base_to_lidar_pose);
     publish_cmd_vel(cmd_vel);
 }

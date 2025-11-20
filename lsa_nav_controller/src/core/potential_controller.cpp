@@ -17,14 +17,17 @@ PotentialController::PotentialController(
     int detect_angle_division_num, 
     float min_distance,
     float max_linear_vel,
-    float max_angular_vel):
+    float max_angular_vel, 
+    float sigma):
 critical_distance_(critical_distance), 
+repulsive_gain_(repulsive_gain_map),
 repulsive_gain_map_(repulsive_gain_map), 
 repulsive_gain_scan_(repulsive_gain_scan),
 min_distance_(min_distance),
 max_linear_vel_(max_linear_vel),
 max_angular_vel_(max_angular_vel),
-attractive_gain_(attractive_gain)
+attractive_gain_(attractive_gain),
+sigma_(sigma)
 {
     scan_ = std::make_unique<Scan>(detect_angle_start, detect_angle_end, detect_angle_division_num);
     map_ = std::make_unique<Map>();
@@ -91,7 +94,9 @@ CmdVel PotentialController::force_to_cmd_vel(Force force)
                 force_magnitude, theta_force, force.x, force.y);
 
     CmdVel cmd_vel;
-    cmd_vel.linear_vel = force.x / force_magnitude * max_linear_vel_;
+    float linear_vel = force_magnitude > 1e-3 ? force.x / force_magnitude * max_linear_vel_ : 0.0f;
+    float linear_vel_vec = linear_vel / fabs(linear_vel);
+    cmd_vel.linear_vel = fabs(linear_vel) > max_linear_vel_ ? linear_vel_vec * max_linear_vel_ : linear_vel;
     float ang_vel_vec = theta_force / fabs(theta_force);
     cmd_vel.angular_vel = fabs(theta_force) > max_angular_vel_ ? ang_vel_vec * max_angular_vel_ : theta_force;
     return cmd_vel;
@@ -104,7 +109,7 @@ Force PotentialController::calc_potential_force(
     Force repulsive_force_scan = calc_repulsive_force_scan();
     Force attractive_force = calc_attractive_force();
     //return attractive_force - repulsive_force_map - repulsive_force_scan;
-    return attractive_force - repulsive_force_scan;
+    return attractive_force + repulsive_force_scan;
 }
 
 Force PotentialController::calc_repulsive_force_map(float odom_x, float odom_y)
@@ -125,21 +130,41 @@ Force PotentialController::calc_repulsive_force_map(float odom_x, float odom_y)
 
 Force PotentialController::calc_repulsive_force_scan(void)
 {
-    std::vector<LaserXY> exceed_lasers;
-    scan_->get_exceed_threshold_lasers(critical_distance_, exceed_lasers);
-    float fx = 0.0f, fy = 0.0f;
-    for(auto &laser : exceed_lasers){
-        float x = laser.x;
-        float y = laser.y;
-        float r = hypot(x, y);
-        if(r < min_distance_) r = min_distance_;
+    float angle = scan_->angle_min_;
+    float angle_increment = scan_->angle_increment_;
+    float rx = 0.0f, ry = 0.0f;
+    for(auto & range : scan_->ranges_){
+        // Values greater than critical distance are ignored
+        if(range < critical_distance_){
+            // Force vector
+            float ex = cos(angle), ey = sin(angle);
 
-        float f = (1 / r - 1 / critical_distance_) / r;
-        nomalize(x, y, x, y);
-        fx += f * x;
-        fy += f * y;
+            // Force magnitude
+            float mag = repulsive_gain_ * exp(-range / sigma_);
+
+            // Accumulate force
+            rx += mag * (-ex);
+            ry += mag * (-ey);
+        }
+        // Calculate repulsive force
+        angle += angle_increment;
     }
-    return {fx * repulsive_gain_scan_, fy * repulsive_gain_scan_};
+    return {rx, ry};
+    // std::vector<LaserXY> exceed_lasers;
+    // scan_->get_exceed_threshold_lasers(critical_distance_, exceed_lasers);
+    // float fx = 0.0f, fy = 0.0f;
+    // for(auto &laser : exceed_lasers){
+    //     float x = laser.x;
+    //     float y = laser.y;
+    //     float r = hypot(x, y);
+    //     if(r < min_distance_) r = min_distance_;
+
+    //     float f = (1 / r - 1 / critical_distance_) / r;
+    //     nomalize(x, y, x, y);
+    //     fx += f * x;
+    //     fy += f * y;
+    // }
+    // return {fx * repulsive_gain_scan_, fy * repulsive_gain_scan_};
 }
 
 void PotentialController::nomalize(
@@ -159,16 +184,6 @@ Force PotentialController::calc_attractive_force(void)
     Laser open_laser = scan_->get_open_laser();
     float r = open_laser.distance, t = open_laser.direction;
     float fx = r * cosf(t), fy = r * sinf(t);
-    // for(size_t i = 0; i < scan_->ranges_.size(); ++i){
-    //     float r = scan_->ranges_[i];
-    //     float t = scan_->angle_min_ + i * scan_->angle_increment_;
-    //     Laser cvt_l = scan_->cvt_lidar_to_robot({t, r});
-    //     r = cvt_l.distance;
-    //     t = cvt_l.direction;
-    //     fx += r * cosf(t);
-    //     fy += r * sinf(t);
-    // }
-
     return {fx * attractive_gain_, fy * attractive_gain_};
 }
 
