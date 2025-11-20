@@ -40,15 +40,21 @@ void LsaNavController::declare_param(void)
     declare_parameter("controller.kp", 1.);
     declare_parameter("controller.ki", 0.);
     declare_parameter("controller.kd", 0.);
+
+    // Parameters for PotentialController
     declare_parameter("potential.critical_distance", 0.4);
     declare_parameter("potential.repulsive_gain_map", 1.0);
     declare_parameter("potential.repulsive_gain_scan", 1.0);
     declare_parameter("potential.attractive_gain", 3.0);
-    declare_parameter("potential.detect_angle_start", -45.0);
-    declare_parameter("potential.detect_angle_end", 45.0);
-    declare_parameter("potential.detect_angle_division_num", 5);
     declare_parameter("potential.repulsive_min_distance", 0.25);
     declare_parameter("potential.sigma", 0.3);
+
+    // Parameters for OpenPlaceChecker
+    declare_parameter("open_place_checker.detect_angle_start", -45.0);
+    declare_parameter("open_place_checker.detect_angle_end", 45.0);
+    declare_parameter("open_place_checker.detect_angle_division_num", 5);
+    declare_parameter("open_place_checker.range_th", 15.0);
+    declare_parameter("open_place_checker.ratio_th", 0.7);
 }
 
 void LsaNavController::init_param(void)
@@ -78,20 +84,28 @@ void LsaNavController::init_param(void)
     //    lin_max_vel, lin_min_vel, ang_max_vel, ang_min_vel, 
     //    lin_acc_th, lin_dec_th, ang_acc_th, ang_dec_th, 
     //    kp, ki, kd, 1 / (float)control_freq_));
+
+    // Construct PotentialController instance
     float critical_distance = get_parameter("potential.critical_distance").as_double(); 
     float repulsive_gain_map = get_parameter("potential.repulsive_gain_map").as_double();
     float repulsive_gain_scan = get_parameter("potential.repulsive_gain_scan").as_double();
     float attractive_gain = get_parameter("potential.attractive_gain").as_double();
-    float detect_angle_start = get_parameter("potential.detect_angle_start").as_double() * M_PI / 180.0;
-    float detect_angle_end = get_parameter("potential.detect_angle_end").as_double() * M_PI / 180.0;
-    int detect_angle_division_num = get_parameter("potential.detect_angle_division_num").as_int();
     float min_distance = get_parameter("potential.repulsive_min_distance").as_double();
     float sigma = get_parameter("potential.sigma").as_double();
     potential_controller_.reset(new PotentialController(
         critical_distance, 
         repulsive_gain_map, repulsive_gain_scan, attractive_gain, 
-        detect_angle_start, detect_angle_end, detect_angle_division_num, 
         min_distance, lin_max_vel, ang_max_vel, sigma));
+
+    // Construct OpenPlaceChecker instance
+    float detect_angle_start = get_parameter("open_place_checker.detect_angle_start").as_double() * M_PI / 180.0;
+    float detect_angle_end = get_parameter("open_place_checker.detect_angle_end").as_double() * M_PI / 180.0;
+    int detect_angle_division_num = get_parameter("open_place_checker.detect_angle_division_num").as_int();
+    float range_th_ = get_parameter("open_place_checker.range_th").as_double();
+    float ratio_th_ = get_parameter("open_place_checker.ratio_th").as_double();
+    open_place_checker_.reset(new OpenPlaceChecker(
+        detect_angle_start, detect_angle_end, detect_angle_division_num, range_th_, ratio_th_));
+    scan_.reset(new Scan());
 }
 
 void LsaNavController::init_pubsub(void)
@@ -113,7 +127,7 @@ void LsaNavController::cb_lsa_map(nav_msgs::msg::OccupancyGrid::ConstSharedPtr m
 
 void LsaNavController::cb_scan(sensor_msgs::msg::LaserScan::ConstSharedPtr msg)
 {
-    potential_controller_->set_scan_data(msg);
+    scan_->set_scan_data(msg);
     scan_frame_id_ = msg->header.frame_id;
     receive_scan_ = true;
 }
@@ -123,13 +137,33 @@ void LsaNavController::main_loop(void)
     if(!init_tf_) init_tf();
     //if(!receive_scan_ || !receive_map_) return;
     if(!receive_scan_) return;
+    
     geometry_msgs::msg::Pose2D odom_to_base_pose, base_to_lidar_pose;
     if(!get_tf_pose(base_frame_id_, odom_frame_id_, odom_to_base_pose)) return;
     if(!get_tf_pose(scan_frame_id_, odom_frame_id_, base_to_lidar_pose)) return;
+    Scan & tmp_scan = *scan_;
+    open_place_checker_->set_scan(tmp_scan);
+    std::array<float, 3> open_laser_info = open_place_checker_->get_open_laser_info();
+    RCLCPP_INFO(get_logger(), "Open place info: direction: %.2f [deg], distance: %.2f [m], ratio score: %.2f", 
+        open_laser_info[0]*180.0/M_PI, open_laser_info[1], open_laser_info[2]);
     // Judge whether open place is available
-    // if
-    CmdVel cmd_vel = potential_controller_->get_cmd_vel(odom_to_base_pose, base_to_lidar_pose);
-    publish_cmd_vel(cmd_vel);
+    if(open_place_checker_->is_open_place_available()){
+        // If available, calculate cmd_vel by PotentialController
+        std::array<float, 3> open_laser_info = open_place_checker_->get_open_laser_info();
+        potential_controller_->set_scan(tmp_scan);
+        CmdVel cmd_vel = potential_controller_->get_cmd_vel(
+            odom_to_base_pose, base_to_lidar_pose, open_laser_info);
+        publish_cmd_vel(cmd_vel);
+        return;
+    }
+
+    // If not available, stop the robot
+    RCLCPP_WARN(get_logger(), "No open place detected. Stop the robot.");
+    CmdVel stop_cmd_vel;
+    stop_cmd_vel.linear_vel = 0.0;
+    stop_cmd_vel.angular_vel = 0.0;
+    publish_cmd_vel(stop_cmd_vel);
+
 }
 
 void LsaNavController::init_tf(void)

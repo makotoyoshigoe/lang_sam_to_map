@@ -34,9 +34,6 @@ class PotentialController{
         float repulsive_gain_map, 
         float repulsive_gain_scan, 
         float attractive_gain, 
-        float detect_angle_start,
-        float detect_angle_end,
-        int detect_angle_division_num,
         float min_distance, 
         float max_linear_vel,
         float max_angular_vel, 
@@ -44,25 +41,24 @@ class PotentialController{
     ~PotentialController();
 
     // setters
-    void set_scan_data(
-        sensor_msgs::msg::LaserScan::ConstSharedPtr scan_msg);
+    void set_scan(Scan & scan);
     void set_map_data(
         nav_msgs::msg::OccupancyGrid::ConstSharedPtr map_msg);
     
     // main methods
     CmdVel get_cmd_vel(
         geometry_msgs::msg::Pose2D odom_pose, 
-        geometry_msgs::msg::Pose2D lidar_pose);
+        geometry_msgs::msg::Pose2D lidar_pose, 
+        std::array<float, 3> open_laser_info);
     CmdVel force_to_cmd_vel(Force force);
-    Force calc_potential_force(
-        geometry_msgs::msg::Pose2D odom_pose); 
+    Force calc_potential_force(void);
     Force calc_repulsive_force_map(float odom_x, float odom_y);
     Force calc_repulsive_force_scan(void);
-    Force calc_attractive_force(void); 
+    Force calc_attractive_force(void);
     void nomalize(float x_in, float y_in, float & x_out, float & y_out);
 
     private:
-    std::unique_ptr<Scan> scan_;
+    Scan scan_;
     std::unique_ptr<Map> map_;
 
     // parameters
@@ -79,6 +75,9 @@ class PotentialController{
     float max_angular_vel_;
     int detect_angle_division_num_;
     float robot_radius_;
+
+    // [0]: direction, [1]: distance, [2]: ratio score
+    std::array<float, 3> open_laser_info_;
 };
 
 } // namespace lsa_nav_controller

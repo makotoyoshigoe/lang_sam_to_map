@@ -8,39 +8,15 @@
 
 namespace lsa_nav_controller
 {
-struct Laser
-{
-    float direction; // in radians
-    float distance;
-};
-
-struct DetectedLaser
-{
-    float start; // in radians
-    float end;
-};
-
-struct LaserXY
-{
-    float x;
-    float y;
-};
-
 class Scan{
     public:
-    Scan(float detect_angle_start, float detect_angle_end, 
-        int detect_angle_division_num);
+    Scan(void);
     ~Scan();
 
     // methods
-    void set_detected_lasers(void);
-    Laser get_open_laser(void);
-    Laser get_laser_average(float start_angle, float end_angle);
     void set_lidar_pose(geometry_msgs::msg::Pose2D lidar_pose);
     size_t rad_to_index(float rad);
-    void get_exceed_threshold_lasers(float threshold, 
-        std::vector<LaserXY> & exceed_lasers);
-    LaserXY cvt_lidar_to_robot(LaserXY laser);
+    void set_scan_data(sensor_msgs::msg::LaserScan::ConstSharedPtr scan_msg);
 
     // public member variables
     float angle_min_;
@@ -55,7 +31,6 @@ class Scan{
     float detect_angle_start_; 
     float detect_angle_end_; 
     int detect_angle_division_num_;
-    std::vector<DetectedLaser> detected_lasers_;
     geometry_msgs::msg::Pose2D lidar_pose_;
 };
 

@@ -12,6 +12,7 @@
 
 #include "lsa_nav_controller/core/road_scan_creator.hpp"
 // #include "lsa_nav_controller/core/controller.hpp"
+#include "lsa_nav_controller/core/open_place_checker.hpp"
 #include "lsa_nav_controller/core/potential_controller.hpp"
 
 namespace lsa_nav_controller
@@ -43,9 +44,13 @@ class LsaNavController : public rclcpp::Node{
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pub_cmd_vel_;
 
     // Core Components
-    std::unique_ptr<RoadScanCreator> road_scan_creator_;
-    // std::unique_ptr<Controller> controller_;
     std::unique_ptr<PotentialController> potential_controller_;
+    std::unique_ptr<OpenPlaceChecker> open_place_checker_;
+    //std::unique_ptr<RoadScanCreator> road_scan_creator_;
+    // std::unique_ptr<Controller> controller_;
+
+    // Sensor Components
+    std::shared_ptr<Scan> scan_;
     
     // TF2
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;

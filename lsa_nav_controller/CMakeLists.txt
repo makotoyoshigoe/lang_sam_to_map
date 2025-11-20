@@ -32,7 +32,9 @@ add_executable(lsa_nav_controller
     src/map/map.cpp
     src/core/road_scan_creator.cpp
     src/core/potential_controller.cpp
+    src/core/open_place_checker.cpp
     src/sensor/scan.cpp
+    src/utils/scan_utils.cpp
 )
 
 ament_target_dependencies(lsa_nav_controller
